@@ -1,0 +1,10 @@
+{
+    "learning_rate": 0.1,
+    "depth": 6,
+    "l2_leaf_reg": 1,
+    "random_strength": 1,
+    "iterations": 1000,
+    "task_type": "GPU",
+    "verbose": false,
+    "random_seed": 42
+}

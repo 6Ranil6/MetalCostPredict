@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: metal_backend
+    restart: always
+    ports:
+      - "5111:5111"
+    volumes:
+      - ./backend/models:/app/models
+
+  frontend:
+    image: nginx:alpine
+    container_name: metal_frontend
+    restart: always
+    ports:
+      - "8081:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
