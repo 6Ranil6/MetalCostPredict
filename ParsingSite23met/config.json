@@ -1,0 +1,43 @@
+{
+    "API_KEYS": {
+        "User_1": {
+            "API_KEY": "e475541ffb58667e2d7a6eb1f502558e",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_2": {
+            "API_KEY": "4f950e4b3ed7168f708a5e54af0b021e",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_3": {
+            "API_KEY": "a4abf409b07029cd46733a9b413dcfba",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_4": {
+            "API_KEY": "bb1562435d8c6b37f43446e0ca5c5106",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_5": {
+            "API_KEY": "1beb54128626b288732ac47fe4aa1b06",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_6": {
+            "API_KEY": "cceba4891f2f3cef691cd91b133a0b25",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        },
+        "User_7": {
+            "API_KEY": "5c8ad1bf8efdb7bc8572b0aa044f5930",
+            "USED_CREDIT": 0,
+            "MAX_CREDIT": 1000
+        }
+    },
+    "UPDATE": {
+        "LAST_CHECKING_DATE": "2025-12-08",
+        "NEXT_UPDATE": 30
+    }
+}

@@ -1,0 +1,14 @@
+GoogleParser.py
+README.md
+base.py
+main.py
+parser_23MET.py
+preProcessor.py
+proxyParser.py
+pyproject.toml
+update_config.py
+CourseWork.egg-info/PKG-INFO
+CourseWork.egg-info/SOURCES.txt
+CourseWork.egg-info/dependency_links.txt
+CourseWork.egg-info/top_level.txt
+tests/test_coursework.py

@@ -1,0 +1,6 @@
+[project]
+name = "CourseWork"
+version = "0.1.0"
+
+[tool.setuptools]
+py-modules = ["main", "base", "GoogleParser", "parser_23MET", "preProcessor", "proxyParser", "update_config"]
