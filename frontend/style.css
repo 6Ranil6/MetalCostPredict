@@ -1,4 +1,5 @@
 :root {
+    /* глобальные переменные */
     --primary: #ff7b00;
     --primary-hover: #e66f00;
     --success: #22c55e;
@@ -9,7 +10,8 @@
     --text-muted: #64748b;
 }
 
-* {
+* { 
+    /* сброс стандартных стилей */
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -17,6 +19,7 @@
 }
 
 body {
+    /* фон страницы и основной текст */
     background-color: var(--bg-page);
     color: var(--text-main);
     padding: 2rem 1rem;
@@ -24,11 +27,13 @@ body {
 }
 
 .container {
+    /* центральный контейнер с максимальной шириной */
     max-width: 800px;
     margin: 0 auto;
 }
 
 .card {
+    /* карточка с тенью и закругленными углами */
     background: var(--bg-card);
     border: 1px solid rgba(255, 123, 0, 0.1);
     border-radius: 1.5rem;
@@ -38,17 +43,20 @@ body {
 }
 
 h1 {
+    /* заголовок первого уровня */
     font-size: 2.2rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
 }
 
 .subtitle {
+    /* подзаголовок серого цвета */
     color: var(--text-muted);
     margin-bottom: 2rem;
 }
 
 .mode-selector {
+    /* контейнер для выбора режима */
     display: inline-flex;
     background: #fff0e0;
     padding: 0.4rem;
@@ -57,6 +65,7 @@ h1 {
 }
 
 .mode-btn {
+    /* кнопка переключения режима */
     padding: 0.7rem 1.5rem;
     border-radius: 0.7rem;
     border: none;
@@ -68,22 +77,21 @@ h1 {
 }
 
 .mode-btn.active {
+    /* активная кнопка режима */
     background: var(--success);
     color: white;
     box-shadow: 0 4px 10px rgba(34, 197, 94, 0.2);
 }
 
 .grid {
+    /* двухколонная сетка для формы */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
 }
 
-@media (max-width: 640px) {
-    .grid { grid-template-columns: 1fr; }
-}
-
 .form-group {
+    /* группа элементов формы */
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -91,27 +99,32 @@ h1 {
 }
 
 label {
+    /* метка для поля ввода */
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-main);
 }
 
-input {
+input, textarea {
+    /* поле ввода и многострочный ввод */
     padding: 0.8rem;
     border-radius: 0.75rem;
     border: 1px solid #fecaca;
     outline: none;
     background: #fffcf9;
     transition: 0.2s;
+    font-size: 1rem;
 }
 
-input:focus {
-    border-color: var(--primary);
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(255, 123, 0, 0.1);
+textarea { 
+    /* расширенные настройки для многострочного ввода */
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
 }
 
 .file-upload-zone {
+    /* зона для загрузки файлов */
     border: 2px dashed #ffcf9d;
     border-radius: 1.5rem;
     padding: 3.5rem 1.5rem;
@@ -123,19 +136,25 @@ input:focus {
 }
 
 .file-upload-zone:hover {
+    /* стиль зоны загрузки при наведении */
     border-color: var(--success);
     background: #f0fdf4;
 }
 
-#file-input { display: none; }
+#file-input {
+    /* скрытое поле для выбора файла */
+    display: none;
+}
 
 .file-icon {
+    /* иконка для зоны загрузки файлов */
     font-size: 3.5rem;
     margin-bottom: 1rem;
     display: block;
 }
 
 .calculate-btn {
+    /* главная кнопка расчета */
     width: 100%;
     margin-top: 2rem;
     padding: 1.2rem;
@@ -151,12 +170,14 @@ input:focus {
 }
 
 .calculate-btn:hover {
+    /* стиль кнопки при наведении */
     background: var(--primary-hover);
     transform: translateY(-2px);
     box-shadow: 0 15px 25px -5px rgba(255, 123, 0, 0.4);
 }
 
 .result-box {
+    /* блок с результатом расчета */
     display: none;
     margin-top: 2rem;
     padding: 2rem;
@@ -167,9 +188,11 @@ input:focus {
 }
 
 .result-value {
+    /* отображение значения результата */
     font-size: 3.5rem;
     font-weight: 900;
     color: var(--success);
+    word-break: break-all; /* защита от переполнения длинными ценами */
 }
 
 footer {
@@ -191,4 +214,160 @@ footer a:hover {
     border-bottom-color: var(--success);
 }
 
-.hidden { display: none; }
+.hidden {
+    /* скрытый элемент */
+    display: none;
+}
+
+.welcome-text {
+    /* текст приветствия на главной странице */
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    margin-bottom: 2rem;
+}
+
+.nav-grid {
+    /* сетка навигационных карточек */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+
+.nav-card {
+    /* навигационная карточка */
+    background: #fffcf9;
+    border: 1px solid rgba(255, 123, 0, 0.15);
+    border-radius: 1.2rem;
+    padding: 1.5rem;
+    text-decoration: none;
+    color: var(--text-main);
+    transition: 0.3s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 200px;
+}
+
+/* Карточка при наведении */
+.nav-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px rgba(255, 123, 0, 0.12);
+}
+
+.nav-card h3 {
+    /* заголовок навигационной карточки */
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+    font-size: 1.15rem;
+}
+
+.nav-card p {
+    /* описание в навигационной карточке */
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+}
+
+.nav-btn {
+    /* кнопка внутри навигационной карточки */
+    display: inline-block;
+    padding: 0.6rem 1rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 0.75rem;
+    font-weight: bold;
+    text-align: center;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+
+.nav-card:hover .nav-btn {
+    background: var(--primary-hover);
+}
+
+.back-btn {
+    /* кнопка возврата на предыдущую страницу */
+    display: inline-flex;
+    align-items: center;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    transition: 0.2s;
+}
+
+.back-btn:hover {
+    /* кнопка возврата при наведении */
+    color: var(--primary-hover);
+    transform: translateX(-3px);
+}
+
+.auth-tabs {
+    /* вкладки для авторизации и регистрации */
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #fff0e0;
+    padding-bottom: 0.5rem;
+}
+
+.auth-tab-btn {
+    /* кнопка вкладки авторизации */
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-bottom: 3px solid transparent;
+    transition: 0.2s;
+}
+
+.auth-tab-btn.active {
+    /* активная вкладка авторизации */
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+
+@media (max-width: 480px) {
+    body {
+        padding: 1rem 0.5rem;
+    }
+
+    .card {
+        padding: 1.5rem 1rem;
+        border-radius: 1rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .welcome-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin-bottom: 1.5rem;
+    }
+
+    /* вкладки в личном кабинете */
+    .auth-tabs {
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .auth-tab-btn {
+        font-size: 1.05rem;
+        padding: 0.4rem 0.5rem;
+    }
+
+    .result-value {
+        font-size: 1.8rem;
+    }
+}

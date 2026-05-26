@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обратная связь</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" class="back-btn">На главную</a>
+
+    <header class="card header-card">
+        <h1>Обратная связь</h1>
+        <p class="subtitle">Напишите нам, и мы поможем решить возникшие вопросы</p>
+    </header>
+
+    <div class="card feedback-card">
+        <form id="feedback-form" onsubmit="handleFeedbackSubmit(event)">
+            <div class="grid" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Ваше имя</label>
+                    <input type="text" id="feedback-name" required placeholder="Введите имя">
+                </div>
+                <div class="form-group">
+                    <label>Email для связи</label>
+                    <input type="email" id="feedback-email" required placeholder="example@mail.ru">
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>Тема обращения</label>
+                <input type="text" id="feedback-subject" required placeholder="Например: Не работает загрузка .parquet">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>Текст сообщения</label>
+                <textarea id="feedback-message" required placeholder="Опишите вашу проблему или предложение во всех подробностях..."></textarea>
+            </div>
+
+            <button type="submit" class="calculate-btn" style="margin-top: 0; background: var(--primary);">Отправить сообщение</button>
+        </form>
+
+        <div id="feedback-result" class="result-box" style="background: #f0fdf4; border-color: var(--success);">
+            <p class="result-label" style="color: var(--success); font-weight: bold;">Сообщение успешно отправлено!</p>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.5rem;">Мы ответим вам на указанный Email в ближайшее время.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 Калькулятор стоимости изделий</p>
+        <div>
+            <a href="https://t.me/ranil_h">Telegram</a>
+            <a href="https://vk.com/ranil666">VK</a>
+            <a href="https://github.com/6Ranil6">GitHub</a>
+        </div>
+    </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

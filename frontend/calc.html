@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор стоимости</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" class="back-btn">На главную</a>
+    
+    <header class="card header-card">
+        <h1>Калькулятор стоимости</h1>
+        <p class="subtitle">Предсказание цены изделия на основе параметров</p>
+    </header>
+
+    <!-- выбор метода загрузки данных -->
+    <div class="mode-selector">
+        <button class="mode-btn active" onclick="setMode('manual')">Ручной ввод</button>
+        <button class="mode-btn" onclick="setMode('file')">Загрузка файла</button>
+    </div>
+
+
+    <div class="card">
+        <div id="manual-section">
+            <h2 style="margin-bottom: 1.5rem;">Параметры изделия</h2>
+            <div class="grid">
+            <div class="form-group">
+                <label>Наименование</label>
+                <input type="text" id="name" placeholder="Введите название">
+            </div>
+            <div class="form-group">
+                <label>Категория цены</label>
+                <input type="text" id="categoryPrice" placeholder="Опт/Розница">
+            </div>
+            <div class="form-group">
+                <label>Основная марка</label>
+                <input type="text" id="mainBrand" placeholder="а500с">
+            </div>
+            <div class="form-group">
+                <label>Марка</label>
+                <input type="text" id="brand" placeholder="Ст3сп">
+            </div>
+            <div class="form-group">
+                <label>Тип материала</label>
+                <input type="text" id="materialType" placeholder="Черный/Нерж">
+            </div>
+            <div class="form-group">
+                <label>Тип продукции</label>
+                <input type="text" id="productType" placeholder="Арматура">
+            </div>
+            <div class="form-group">
+                <label>Размер A</label>
+                <input type="number" id="sizeA" placeholder="0.0">
+            </div>
+            <div class="form-group">
+                <label>Размер B</label>
+                <input type="number" id="sizeB" placeholder="0.0">
+            </div>
+            <div class="form-group">
+                <label>Размер C</label>
+                <input type="number" id="sizeC" placeholder="0.0">
+            </div>
+            <div class="form-group">
+                <label>Толщина (мм)</label>
+                <input type="number" id="thickness" step="0.01" placeholder="мм">
+            </div>
+            <div class="form-group">
+                <label>Типоразмер</label>
+                <input type="text" id="typeSize" placeholder="12Б1">
+            </div>
+            <div class="form-group">
+                <label>Тип стандарта</label>
+                <input type="text" id="standardType" placeholder="ГОСТ/ТУ">
+            </div>
+            <div class="form-group">
+                <label>Номер стандарта</label>
+                <input type="text" id="standardNumber" placeholder="34028">
+            </div>
+            <div class="form-group">
+                <label>Условие цены</label>
+                <input type="text" id="priceCondition" placeholder="от 1 тонны">
+            </div>
+        </div>
+    </div>
+    
+    <!-- загрузка файла -->
+    <div id="file-section" class="hidden">
+        <h2 style="margin-bottom: 1.5rem;">Загрузка файла</h2>
+        <label for="file-input" class="file-upload-zone">
+            <span class="file-icon">📝</span>
+            <p>Выберите файл</p>
+            <p style="font-size: 0.875rem; color: var(--text-secondary);">Поддерживаются форматы .csv и .parquet</p>
+            <input type="file" id="file-input" accept=".csv,.parquet" onchange="handleFile(this)">
+            <p id="file-name" style="margin-top: 10px; color: var(--success); font-weight: bold;"></p>
+        </label>
+    </div>
+   
+    <!-- блок выдача ответов -->
+    <button class="calculate-btn" onclick="calculate()">Рассчитать стоимость</button>
+
+    <div id="result" class="result-box">
+        <p class="result-label">Итоговая стоимость</p>
+        <p class="result-value" id="price-display">0 ₽</p>
+    </div>
+
+    <footer>
+        <p>@ 2026 Калькулятор стоимости изделий</p>
+        <div>
+            <a href="https://t.me/ranil_h">Telegram</a>
+            <a href="https://vk.com/ranil666">VK</a>
+            <a href="https://github.com/6Ranil6">GitHub</a>
+        </div>
+    </footer>
+</div>
+
+
+<script src="script.js"></script>
+
+<script>
+    // проверяем авторизацию сразу при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+        requireAuthorizationForCalculator();
+    });
+</script>
+
+</body>
+</html>

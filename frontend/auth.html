@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" class="back-btn">На главную</a>
+
+    <header class="card header-card">
+        <h1>Личный кабинет</h1>
+        <p class="subtitle">Войдите в систему или создайте новый аккаунт</p>
+    </header>
+
+    <div class="card auth-card">
+        <!-- переключатель форм -->
+        <div class="auth-tabs">
+            <button id="tab-login" class="auth-tab-btn active" onclick="toggleAuthMode('login')">Вход</button>
+            <button id="tab-register" class="auth-tab-btn" onclick="toggleAuthMode('register')">Регистрация</button>
+        </div>
+
+        <!-- форма входа -->
+        <form id="login-form" onsubmit="handleAuthSubmit(event, 'login')">
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label>Email / Логин</label>
+                <input type="email" required placeholder="example@mail.ru">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>Пароль</label>
+                <input type="password" required placeholder="Введите пароль">
+            </div>
+            <button type="submit" class="calculate-btn" style="margin-top: 0;">Войти</button>
+        </form>
+
+        <!-- форма регистрации (скрыта по умолчанию) -->
+        <form id="register-form" class="hidden" onsubmit="handleAuthSubmit(event, 'register')">
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label>Ваше ФИО</label>
+                <input type="text" required placeholder="ФИО">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label>Email</label>
+                <input type="email" required placeholder="example@mail.ru">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label>Пароль</label>
+                <input type="password" required placeholder="Создайте пароль">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>Подтвердите пароль</label>
+                <input type="password" required placeholder="Повторите пароль">
+            </div>
+            <button type="submit" class="calculate-btn" style="margin-top: 0; background: var(--success);">Зарегистрироваться</button>
+        </form>
+    </div>
+
+    <footer>
+        <p>© 2026 Калькулятор стоимости изделий</p>
+        <div>
+            <a href="https://t.me/ranil_h">Telegram</a>
+            <a href="https://vk.com/ranil666">VK</a>
+            <a href="https://github.com/6Ranil6">GitHub</a>
+        </div>
+    </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

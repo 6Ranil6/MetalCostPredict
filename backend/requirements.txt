@@ -1,5 +1,10 @@
 aiohttp
 aiohttp-cors
-pandas
 numpy
+pandas
 catboost
+pyarrow
+psycopg2-binary
+pytest
+pytest-asyncio
+pytest-aiohttp

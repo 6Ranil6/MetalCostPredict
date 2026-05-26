@@ -1,24 +1,112 @@
-let currentMode = 'manual'; // ручной ввод данных или file
+let currentMode = 'manual'; // ручной ввод или загрузка файла
 
-function setMode(mode) {
+function renderUserStatus() {
+    const container = document.querySelector('.container');
+    if (!container) return;
+
+    // очищаем старую панель статуса, если она была отрендерена ранее
+    const oldPanel = document.getElementById('user-status-panel');
+    if (oldPanel) oldPanel.remove();
+
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    const panel = document.createElement('div');
+    panel.id = 'user-status-panel';
+    panel.style.display = 'flex';
+    panel.style.justifyContent = 'space-between';
+    panel.style.alignItems = 'center';
+    panel.style.padding = '0.8rem 1.5rem';
+    panel.style.background = '#fff0e0';
+    panel.style.borderRadius = '1rem';
+    panel.style.marginBottom = '1.5rem';
+    panel.style.fontSize = '0.95rem';
+    panel.style.border = '1px solid rgba(255, 123, 0, 0.2)';
+
+    if (user) {
+        let roleBadge = user.role === 'pro' ? 'Pro' : user.role === 'admin' ? 'Admin' : 'Пользователь';
+        panel.innerHTML = `
+            <span>Вы вошли как: <strong>${user.name}</strong> (${roleBadge})</span>
+            <button onclick="handleLogout()" style="background: none; border: none; color: var(--primary); font-weight: bold; cursor: pointer;">Выйти</button>
+        `;
+    } else {
+        panel.innerHTML = `
+            <span>Вы используете калькулятор в режиме гостя.</span>
+            <a href="auth.html" style="color: var(--primary); font-weight: bold; text-decoration: none;">Войти в личный кабинет</a>
+        `;
+    }
+
+    // втавляем панель в начало контейнера перед первой карточкой или кнопкой назад
+    const referenceElement = container.querySelector('.card, .back-btn');
+    if (referenceElement) {
+        container.insertBefore(panel, referenceElement);
+    }
+}
+
+// выход из личного кабинета
+function handleLogout() {
+    localStorage.removeItem('user');
+    renderUserStatus();
+    
+    // если пользователь вышел, находясь на странице личного кабинета - перезагружаем форму
+    if (document.getElementById('login-form')) {
+        window.location.reload();
+    }
+}
+
+// проверка авторизации для доступа к калькулятору
+function requireAuthorizationForCalculator() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+        alert('Доступ к калькулятору требует авторизации. Пожалуйста, войдите или зарегистрируйтесь.');
+        window.location.href = 'auth.html';
+    }
+}
+
+// инициализация при загрузке документа
+document.addEventListener('DOMContentLoaded', () => {
+    renderUserStatus();
+    
+    // автоматическое заполнение имени и почты на странице обратной связи для авторизованных пользователей
+    const user = JSON.parse(localStorage.getItem('user'));
+    const fbName = document.getElementById('feedback-name');
+    const fbEmail = document.getElementById('feedback-email');
+    if (user && fbName && fbEmail) {
+        fbName.value = user.name;
+        fbEmail.value = user.email;
+    }
+});
+
+
+function setMode(mode) { // устанавливаем тип ввода
     currentMode = mode;
     
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    if (mode === 'manual') {
-        document.getElementById('manual-section').classList.remove('hidden');
-        document.getElementById('file-section').classList.add('hidden');
-    } else {
-        document.getElementById('manual-section').classList.add('hidden');
-        document.getElementById('file-section').classList.remove('hidden');
+    if (event && event.target) {
+        event.target.classList.add('active');
     }
-    document.getElementById('result').style.display = 'none';
+
+    const manualSection = document.getElementById('manual-section');
+    const fileSection = document.getElementById('file-section');
+    const resultBox = document.getElementById('result');
+
+    if (manualSection && fileSection) {
+        if (mode === 'manual') {
+            manualSection.classList.remove('hidden');
+            fileSection.classList.add('hidden');
+        } else {
+            manualSection.classList.add('hidden');
+            fileSection.classList.remove('hidden');
+        }
+    }
+    if (resultBox) {
+        resultBox.style.display = 'none';
+    }
 }
 
-function handleFile(input) {
-    if (input.files && input.files[0]) {
-        document.getElementById('file-name').textContent = input.files[0].name;
+function handleFile(input) { // показываем название выбранного файла
+    const fileNameDisplay = document.getElementById('file-name');
+    if (fileNameDisplay && input.files && input.files[0]) {
+        fileNameDisplay.textContent = input.files[0].name;
     }
 }
 
@@ -27,14 +115,21 @@ async function calculate() {
     const resultBox = document.getElementById('result');
     const priceDisplay = document.getElementById('price-display');
 
+    if (!btn || !resultBox || !priceDisplay) return;
+
     btn.textContent = "Считаем...";
     btn.disabled = true;
+
+    // считываем id авторизованного пользователя для логирования истории расчетов
+    const user = JSON.parse(localStorage.getItem('user'));
+    const userId = user ? user.id : null;
 
     try {
         let response;
 
         if (currentMode === 'manual') {
             const formData = {
+                'user_id': userId, // Передается на бэкенд для привязки к predictions_history
                 'Наименование': document.getElementById('name').value,
                 'Категория_цены': document.getElementById('categoryPrice').value,
                 'Основная_марка': document.getElementById('mainBrand').value,
@@ -54,15 +149,24 @@ async function calculate() {
             response = await fetch('http://127.0.0.1:5111/predict-manual', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData) //dump
+                body: JSON.stringify(formData)
             });
-            if (!response.ok) throw new Error('Ошибка сервера');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сервера при расчете');
+            }
 
             const result = await response.json();
-                    
             priceDisplay.textContent = result.price.toLocaleString('ru-RU') + " руб.";
         } else {
             const fileInput = document.getElementById('file-input');
+            if (!fileInput || !fileInput.files[0]) {
+                alert("Пожалуйста, выберите файл перед отправкой.");
+                btn.textContent = "Рассчитать стоимость";
+                btn.disabled = false;
+                return;
+            }
+            
             const fileData = new FormData();
             fileData.append('file', fileInput.files[0]);
 
@@ -71,16 +175,15 @@ async function calculate() {
                 body: fileData 
             });
 
-            if (!response.ok) throw new Error('Ошибка сервера');
+            if (!response.ok) throw new Error('Ошибка при пакетной обработке файла');
 
-
-            const blob = await response.blob(); // Получаем бинарные данные
-            const url = window.URL.createObjectURL(blob); // Создаем URL, где лежат наши данные
-            const a = document.createElement('a'); // создаем в UTL тег а
-            a.href = url; // параметры прописываем
+            const blob = await response.blob(); 
+            const url = window.URL.createObjectURL(blob); 
+            const a = document.createElement('a'); 
+            a.href = url; 
             a.download = "result_prices.csv";
-            document.body.appendChild(a); // добавляем ссылку на странуцу
-            a.click(); // Имитируем нажатие по ссылке
+            document.body.appendChild(a); 
+            a.click(); 
             a.remove();
             
             priceDisplay.textContent = "Файл обработан и скачан!";
@@ -88,12 +191,134 @@ async function calculate() {
         
         resultBox.style.display = 'block';
 
-
     } catch (error) {
         console.error("Ошибка запроса:", error);
-        alert("Произошла ошибка. Проверьте, запущен ли Python-сервер.");
+        alert(error.message || "Произошла непредвиденная ошибка. Проверьте соединение с бэкендом.");
     } finally {
         btn.textContent = "Рассчитать стоимость";
         btn.disabled = false;
+    }
+}
+
+
+function toggleAuthMode(mode) { // переключение вкладок вход / регистрация в ЛК
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+
+    if (!loginForm || !registerForm || !tabLogin || !tabRegister) return;
+
+    if (mode === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+    } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabLogin.classList.remove('active');
+        tabRegister.classList.add('active');
+    }
+}
+
+async function handleAuthSubmit(event, type) {
+    event.preventDefault();
+    const inputs = event.target.querySelectorAll('input');
+    
+    try {
+        if (type === 'login') {
+            const email = inputs[0].value;
+            const password = inputs[1].value;
+            
+            const response = await fetch('http://127.0.0.1:5111/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Неверный адрес почты или пароль');
+            }
+            
+            // сохраняем сессию в localStorage
+            localStorage.setItem('user', JSON.stringify(data));
+            
+            // переадресовываем на главную
+            window.location.href = "index.html";
+        } else {
+            const name = inputs[0].value;
+            const email = inputs[1].value;
+            const password = inputs[2].value;
+            const confirmPassword = inputs[3].value;
+            
+            if (password !== confirmPassword) {
+                throw new Error("Введенные пароли не совпадают!");
+            }
+            
+            const response = await fetch('http://127.0.0.1:5111/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Не удалось зарегистрироваться');
+            }
+            
+            toggleAuthMode('login');
+        }
+        event.target.reset();
+    } catch (error) {
+        console.error("Ошибка аутентификации:", error);
+        alert(error.message);
+    }
+}
+
+async function handleFeedbackSubmit(event) {
+    event.preventDefault();
+    
+    const user = JSON.parse(localStorage.getItem('user'));
+    const userId = user ? user.id : null;
+
+    const name = document.getElementById('feedback-name').value;
+    const email = document.getElementById('feedback-email').value;
+    const subject = document.getElementById('feedback-subject').value;
+    const message = document.getElementById('feedback-message').value;
+
+    const resultBox = document.getElementById('feedback-result');
+
+    try {
+        const response = await fetch('http://127.0.0.1:5111/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                name,
+                email,
+                subject,
+                message
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка при отправке сообщения в поддержку');
+        }
+
+        if (resultBox) {
+            resultBox.style.display = 'block';
+            event.target.reset();
+            
+            // скрываем плашку успешной отправки через 6 секунд
+            setTimeout(() => {
+                resultBox.style.display = 'none';
+            }, 6000);
+        }
+    } catch (error) {
+        console.error("Ошибка отправки фидбека:", error);
+        alert(error.message);
     }
 }
