@@ -11,7 +11,7 @@ import psycopg2
 
 from app_db import (
     init_db, close_db, run_execute, run_fetchrow, 
-    hash_password
+    hash_password, run_fetchall_predictions_history
 )
 
 IMPORTANT_FEATURES = [
@@ -184,6 +184,8 @@ async def file_handler(request: web.Request):
     try:
         data = await request.post()
         file_field = data.get('file')
+        user_id = data.get('user_id')
+        
         if not file_field: 
             return web.json_response({"error": "No file"}, status=400)
             
@@ -200,6 +202,17 @@ async def file_handler(request: web.Request):
             prices = get_model_predict(df_predict)
             df_orig['Предсказанная_Цена'] = np.round(prices.flatten(), 2)
             
+            # Сохранение каждой строки в БД если пользователь авторизован
+            if user_id:
+                for idx, row in df_orig.iterrows():
+                    input_data = row.drop('Предсказанная_Цена').to_dict()
+                    predicted_price = row['Предсказанная_Цена']
+                    await run_execute(
+                        request.app,
+                        "INSERT INTO predictions_history (user_id, input_data, predicted_price) VALUES (%s, %s, %s)",
+                        user_id, json.dumps(input_data, ensure_ascii=False), predicted_price
+                    )
+            
             output = io.StringIO()
             df_orig.to_csv(output, index=False)
             return web.Response(
@@ -208,6 +221,43 @@ async def file_handler(request: web.Request):
                 headers={'Content-Disposition': 'attachment; filename="result.csv"'}
             )
         return web.json_response({"error": "Data validation failed"}, status=400)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@routes.get("/api/predictions-history/{user_id}")
+async def get_predictions_history(request: web.Request):
+    try:
+        user_id = request.match_info['user_id']
+        
+        # Получение параметра limit из query string (по умолчанию 50)
+        limit = request.query.get('limit', 50)
+        try:
+            limit = int(limit)
+            if limit < 1:
+                limit = 1
+            if limit > 1000:
+                limit = 1000
+        except ValueError:
+            limit = 50
+        
+        # Получение истории из БД
+        records = await run_fetchall_predictions_history(request.app, user_id, limit)
+        
+        if not records:
+            return web.json_response({"history": []}, status=200)
+        
+        # Преобразование результатов
+        history = []
+        for record in records:
+            history.append({
+                'id': record['id'],
+                'input_data': json.loads(record['input_data']),
+                'predicted_price': float(record['predicted_price']),
+                'created_at': record['created_at'].isoformat()
+            })
+        
+        return web.json_response({"history": history}, status=200)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 

@@ -74,6 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fbName.value = user.name;
         fbEmail.value = user.email;
     }
+    
+    // Показываем раздел истории и загружаем её для авторизованных пользователей
+    if (user && document.getElementById('history-section')) {
+        document.getElementById('history-section').style.display = 'block';
+        loadPredictionsHistory();
+    }
 });
 
 
@@ -158,6 +164,11 @@ async function calculate() {
 
             const result = await response.json();
             priceDisplay.textContent = result.price.toLocaleString('ru-RU') + " руб.";
+            
+            // Обновляем историю после успешного расчета
+            if (userId) {
+                loadPredictionsHistory();
+            }
         } else {
             const fileInput = document.getElementById('file-input');
             if (!fileInput || !fileInput.files[0]) {
@@ -169,6 +180,7 @@ async function calculate() {
             
             const fileData = new FormData();
             fileData.append('file', fileInput.files[0]);
+            fileData.append('user_id', userId);
 
             response = await fetch('http://127.0.0.1:5111/predict-file', {
                 method: 'POST',
@@ -187,6 +199,11 @@ async function calculate() {
             a.remove();
             
             priceDisplay.textContent = "Файл обработан и скачан!";
+            
+            // Обновляем историю после успешной загрузки файла
+            if (userId) {
+                loadPredictionsHistory();
+            }
         }
         
         resultBox.style.display = 'block';
@@ -321,4 +338,76 @@ async function handleFeedbackSubmit(event) {
         console.error("Ошибка отправки фидбека:", error);
         alert(error.message);
     }
+}
+
+// Функция для загрузки истории предсказаний пользователя
+async function loadPredictionsHistory() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return;
+
+    const historyList = document.getElementById('history-list');
+    const limitInput = document.getElementById('history-limit');
+    if (!historyList || !limitInput) return;
+
+    const limit = parseInt(limitInput.value) || 50;
+
+    try {
+        const response = await fetch(`http://127.0.0.1:5111/api/predictions-history/${user.id}?limit=${limit}`);
+        if (!response.ok) {
+            throw new Error('Ошибка при загрузке истории');
+        }
+
+        const data = await response.json();
+        const history = data.history || [];
+
+        if (history.length === 0) {
+            historyList.innerHTML = '<p class="history-empty">История запросов пуста</p>';
+            return;
+        }
+
+        // Формируем HTML для истории
+        let historyHTML = '';
+        history.forEach((item, index) => {
+            const date = new Date(item.created_at).toLocaleString('ru-RU');
+            const productName = item.input_data['Наименование'] || 'Неизвестный продукт';
+            const price = item.predicted_price.toLocaleString('ru-RU');
+
+            historyHTML += `
+                <div class="history-item">
+                    <div class="history-item-info">
+                        <div class="history-item-name">${productName}</div>
+                        <div class="history-item-date">${date}</div>
+                    </div>
+                    <div class="history-item-right">
+                        <div class="history-item-price">${price} ₽</div>
+                        <button class="history-item-btn" onclick="showHistoryDetails(${JSON.stringify(item.input_data).replace(/"/g, '&quot;')})">Подробно</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        historyList.innerHTML = historyHTML;
+    } catch (error) {
+        console.error("Ошибка загрузки истории:", error);
+        historyList.innerHTML = '<p class="history-empty" style="color: red;">Ошибка при загрузке истории</p>';
+    }
+}
+
+// Функция для очистки отображения истории
+function clearHistoryView() {
+    const historyList = document.getElementById('history-list');
+    if (historyList) {
+        historyList.innerHTML = '<p class="history-empty">История запросов пуста</p>';
+    }
+}
+
+// Функция для показа подробной информации о запросе
+function showHistoryDetails(inputData) {
+    let details = 'Параметры запроса:\n\n';
+    for (const [key, value] of Object.entries(inputData)) {
+        if (value && value !== 'отсутствует') {
+            details += `${key}: ${value}\n`;
+        }
+    }
+    alert(details);
 }

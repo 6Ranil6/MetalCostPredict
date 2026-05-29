@@ -109,6 +109,23 @@ def sync_fetchrow(db_pool, query, params):
         db_pool.putconn(conn)
 
 
+def sync_fetchall_predictions_history(db_pool, user_id, limit):
+    """Синхронное получение истории предсказаний пользователя."""
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, input_data, predicted_price, created_at 
+                FROM predictions_history 
+                WHERE user_id = %s 
+                ORDER BY created_at DESC 
+                LIMIT %s
+            """, (user_id, limit))
+            return cur.fetchall()
+    finally:
+        db_pool.putconn(conn)
+
+
 # АСИНХРОННЫЕ ОБЕРТКИ НАД СИНХРОННЫМИ ЗАПРОСАМИ
 
 async def init_db(app):
@@ -135,3 +152,8 @@ async def run_execute(app, query, *params):
 async def run_fetchrow(app, query, *params):
     """Асинхронное получение одной строки."""
     return await asyncio.to_thread(sync_fetchrow, app['db_pool'], query, params)
+
+
+async def run_fetchall_predictions_history(app, user_id, limit):
+    """Асинхронное получение истории предсказаний пользователя."""
+    return await asyncio.to_thread(sync_fetchall_predictions_history, app['db_pool'], user_id, limit)
