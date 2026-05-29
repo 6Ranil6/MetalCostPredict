@@ -123,6 +123,13 @@ async function calculate() {
 
     if (!btn || !resultBox || !priceDisplay) return;
 
+    // Проверяем, что категория цены выбрана
+    const categoryPrice = document.getElementById('categoryPrice').value;
+    if (!categoryPrice) {
+        alert('Пожалуйста, выберите категорию цены из списка');
+        return;
+    }
+
     btn.textContent = "Считаем...";
     btn.disabled = true;
 
@@ -137,7 +144,7 @@ async function calculate() {
             const formData = {
                 'user_id': userId, // Передается на бэкенд для привязки к predictions_history
                 'Наименование': document.getElementById('name').value,
-                'Категория_цены': document.getElementById('categoryPrice').value,
+                'Категория_цены': categoryPrice,
                 'Основная_марка': document.getElementById('mainBrand').value,
                 'Марка': document.getElementById('brand').value,
                 'Тип_материала': document.getElementById('materialType').value,
@@ -163,7 +170,7 @@ async function calculate() {
             }
 
             const result = await response.json();
-            priceDisplay.textContent = result.price.toLocaleString('ru-RU') + " руб.";
+            priceDisplay.textContent = result.price.toLocaleString('ru-RU') + " " + categoryPrice;
             
             // Обновляем историю после успешного расчета
             if (userId) {
@@ -353,11 +360,18 @@ async function loadPredictionsHistory() {
 
     try {
         const response = await fetch(`http://127.0.0.1:5111/api/predictions-history/${user.id}?limit=${limit}`);
+        
         if (!response.ok) {
-            throw new Error('Ошибка при загрузке истории');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
         }
 
         const data = await response.json();
+        
+        if (!data || !data.history) {
+            throw new Error('Некорректный формат ответа от сервера');
+        }
+        
         const history = data.history || [];
 
         if (history.length === 0) {
@@ -368,46 +382,199 @@ async function loadPredictionsHistory() {
         // Формируем HTML для истории
         let historyHTML = '';
         history.forEach((item, index) => {
-            const date = new Date(item.created_at).toLocaleString('ru-RU');
-            const productName = item.input_data['Наименование'] || 'Неизвестный продукт';
-            const price = item.predicted_price.toLocaleString('ru-RU');
+            try {
+                const date = new Date(item.created_at).toLocaleString('ru-RU');
+                const productName = (item.input_data && item.input_data['Наименование']) || 'Неизвестный продукт';
+                const priceCategory = (item.input_data && item.input_data['Категория_цены']) || '₽';
+                const price = item.predicted_price ? item.predicted_price.toLocaleString('ru-RU') : '0';
 
-            historyHTML += `
-                <div class="history-item">
-                    <div class="history-item-info">
-                        <div class="history-item-name">${productName}</div>
-                        <div class="history-item-date">${date}</div>
+                historyHTML += `
+                    <div class="history-item">
+                        <div class="history-item-info">
+                            <div class="history-item-name">${escapeHtml(productName)}</div>
+                            <div class="history-item-date">${date}</div>
+                        </div>
+                        <div class="history-item-right">
+                            <div class="history-item-price">${price} ${escapeHtml(priceCategory)}</div>
+                            <div style="display: flex; gap: 0.3rem; margin-top: 0.3rem;">
+                                <button class="history-item-btn" onclick="showHistoryDetails(${JSON.stringify(item.input_data).replace(/"/g, '&quot;')})">Подробно</button>
+                                <button class="history-item-delete" onclick="deleteHistoryItem(${item.id})" title="Удалить из истории">❌</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="history-item-right">
-                        <div class="history-item-price">${price} ₽</div>
-                        <button class="history-item-btn" onclick="showHistoryDetails(${JSON.stringify(item.input_data).replace(/"/g, '&quot;')})">Подробно</button>
-                    </div>
-                </div>
-            `;
+                `;
+            } catch (itemError) {
+                console.error('Ошибка при обработке элемента истории:', itemError);
+            }
         });
 
-        historyList.innerHTML = historyHTML;
+        historyList.innerHTML = historyHTML || '<p class="history-empty">Не удалось загрузить историю</p>';
     } catch (error) {
         console.error("Ошибка загрузки истории:", error);
-        historyList.innerHTML = '<p class="history-empty" style="color: red;">Ошибка при загрузке истории</p>';
+        historyList.innerHTML = `<p class="history-empty" style="color: red;">Ошибка: ${error.message || 'неизвестная ошибка'}</p>`;
     }
+}
+
+// функция для очистки HTML от XSS
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
 // Функция для очистки отображения истории
 function clearHistoryView() {
-    const historyList = document.getElementById('history-list');
-    if (historyList) {
-        historyList.innerHTML = '<p class="history-empty">История запросов пуста</p>';
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return;
+
+    // Показываем модальное окно подтверждения
+    showConfirmModal(
+        'Вы уверены, что хотите очистить всю историю запросов?',
+        () => clearAllHistory(user.id)
+    );
+}
+
+// Функция для очистки всей истории (soft delete)
+async function clearAllHistory(userId) {
+    try {
+        const response = await fetch(`http://127.0.0.1:5111/api/hide-all-predictions/${userId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка при очистке истории');
+        }
+
+        const historyList = document.getElementById('history-list');
+        if (historyList) {
+            historyList.innerHTML = '<p class="history-empty">История запросов пуста</p>';
+        }
+        closeConfirmModal();
+    } catch (error) {
+        console.error("Ошибка очистки истории:", error);
+        alert(`Ошибка: ${error.message}`);
     }
 }
 
-// Функция для показа подробной информации о запросе
-function showHistoryDetails(inputData) {
-    let details = 'Параметры запроса:\n\n';
-    for (const [key, value] of Object.entries(inputData)) {
-        if (value && value !== 'отсутствует') {
-            details += `${key}: ${value}\n`;
+// Функция для удаления одного элемента истории (soft delete)
+async function deleteHistoryItem(predictionId) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return;
+
+    try {
+        const response = await fetch(`http://127.0.0.1:5111/api/hide-prediction/${predictionId}/${user.id}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка при удалении записи');
         }
+
+        // Перезагружаем историю
+        loadPredictionsHistory();
+    } catch (error) {
+        console.error("Ошибка удаления записи:", error);
+        alert(`Ошибка: ${error.message}`);
     }
-    alert(details);
 }
+
+// Функция для показа подробной информации о запросе в модальном окне
+function showHistoryDetails(inputData) {
+    try {
+        const modalBody = document.getElementById('modal-body');
+        if (!modalBody) return;
+
+        let detailsHTML = '';
+        let hasData = false;
+
+        for (const [key, value] of Object.entries(inputData || {})) {
+            if (value !== null && value !== undefined && value !== 'отсутствует' && value !== '') {
+                hasData = true;
+                const displayValue = typeof value === 'number' ? value.toString() : String(value);
+                detailsHTML += `
+                    <div class="modal-body-item">
+                        <div class="modal-body-label">${escapeHtml(key)}</div>
+                        <div class="modal-body-value">${escapeHtml(displayValue)}</div>
+                    </div>
+                `;
+            }
+        }
+
+        if (!hasData) {
+            detailsHTML = '<p style="text-align: center; color: var(--text-muted);">Нет данных для отображения</p>';
+        }
+
+        modalBody.innerHTML = detailsHTML;
+
+        // Открываем модальное окно
+        const modal = document.getElementById('details-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Ошибка при отображении деталей:', error);
+        alert('Ошибка при загрузке деталей запроса');
+    }
+}
+
+// Функция для закрытия модального окна подробной информации
+function closeDetailsModal() {
+    const modal = document.getElementById('details-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Переменная для сохранения callback функции подтверждения
+let confirmCallback = null;
+
+// Функция для показа модального окна подтверждения
+function showConfirmModal(message, callback) {
+    const confirmText = document.getElementById('confirm-text');
+    if (confirmText) {
+        confirmText.textContent = message;
+    }
+    confirmCallback = callback;
+
+    const modal = document.getElementById('confirm-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+// Функция для закрытия модального окна подтверждения
+function closeConfirmModal() {
+    const modal = document.getElementById('confirm-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    confirmCallback = null;
+}
+
+// Функция для подтверждения действия
+function confirmAction() {
+    if (confirmCallback) {
+        confirmCallback();
+    }
+    closeConfirmModal();
+}
+
+// Закрытие модальных окон при клике на фон
+document.addEventListener('click', function(event) {
+    const detailsModal = document.getElementById('details-modal');
+    const confirmModal = document.getElementById('confirm-modal');
+
+    if (event.target === detailsModal && detailsModal) {
+        closeDetailsModal();
+    }
+    if (event.target === confirmModal && confirmModal) {
+        closeConfirmModal();
+    }
+});

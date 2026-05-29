@@ -11,7 +11,8 @@ import psycopg2
 
 from app_db import (
     init_db, close_db, run_execute, run_fetchrow, 
-    hash_password, run_fetchall_predictions_history
+    hash_password, run_fetchall_predictions_history,
+    run_hide_prediction, run_hide_all_predictions
 )
 
 IMPORTANT_FEATURES = [
@@ -29,6 +30,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_local_model():
+    """Загружает обученную модель CatBoost с диска."""
     paths_to_try = [
         os.path.join(BASE_DIR, "models", "model.cb"),
         os.path.join(BASE_DIR, "modles", "model.cb")
@@ -47,6 +49,7 @@ def load_local_model():
         print(f"Ошибка: Файл модели не найден по путям: {paths_to_try}")
 
 async def check_data_format(df: pd.DataFrame):
+    """Проверяет и приводит данные к необходимому формату для модели."""
     try:
         for feat in IMPORTANT_FEATURES:
             if feat not in df.columns: 
@@ -65,6 +68,7 @@ async def check_data_format(df: pd.DataFrame):
         return False
 
 def get_model_predict(df: pd.DataFrame):
+    """Получает предсказание цены от модели для переданных данных."""
     df_input = df[IMPORTANT_FEATURES]
     prediction = model.predict(df_input)
     return np.expm1(np.atleast_1d(prediction))
@@ -73,10 +77,12 @@ routes = web.RouteTableDef()
 
 @routes.get("/health")
 async def healthy(request: web.Request):
+    """Проверяет статус работы сервера."""
     return web.Response(text="Сервер работает")
 
 @routes.post("/api/register")
 async def register_handler(request: web.Request):
+    """Регистрирует нового пользователя в системе."""
     try:
         data = await request.json()
         name = data.get("name")
@@ -102,6 +108,7 @@ async def register_handler(request: web.Request):
 
 @routes.post("/api/login")
 async def login_handler(request: web.Request):
+    """Аутентифицирует пользователя и возвращает его данные при успешном входе."""
     try:
         data = await request.json()
         email = data.get("email")
@@ -136,6 +143,7 @@ async def login_handler(request: web.Request):
 
 @routes.post("/api/feedback")
 async def feedback_handler(request: web.Request):
+    """Сохраняет сообщение обратной связи от пользователя в БД."""
     try:
         data = await request.json()
         user_id = data.get("user_id")
@@ -159,6 +167,7 @@ async def feedback_handler(request: web.Request):
 
 @routes.post("/predict-manual")
 async def manual_handler(request: web.Request):
+    """Обрабатывает ручной ввод данных и возвращает предсказанную цену."""
     try:
         data = await request.json()
         user_id = data.pop('user_id', None)
@@ -168,10 +177,20 @@ async def manual_handler(request: web.Request):
             prices = get_model_predict(df)
             price = round(float(prices[0]), 2)
             
+            # преобразуем значения в JSON
+            input_data_clean = {}
+            for key, value in data.items():
+                if pd.isna(value) or value is None or value == '':
+                    input_data_clean[key] = None
+                elif isinstance(value, (np.integer, np.floating)):
+                    input_data_clean[key] = float(value) if isinstance(value, np.floating) else int(value)
+                else:
+                    input_data_clean[key] = str(value) if value is not None else None
+            
             await run_execute(
                 request.app,
                 "INSERT INTO predictions_history (user_id, input_data, predicted_price) VALUES (%s, %s, %s)",
-                user_id, json.dumps(data, ensure_ascii=False), price
+                user_id, json.dumps(input_data_clean, ensure_ascii=False), price
             )
             
             return web.json_response({"price": price}, status=200)
@@ -181,6 +200,7 @@ async def manual_handler(request: web.Request):
 
 @routes.post("/predict-file")
 async def file_handler(request: web.Request):
+    """Обрабатывает загруженный файл (CSV/Parquet) и возвращает результаты с предсказаниями."""
     try:
         data = await request.post()
         file_field = data.get('file')
@@ -196,21 +216,35 @@ async def file_handler(request: web.Request):
             df_orig = pd.read_parquet(io.BytesIO(content))
         else:
             df_orig = pd.read_csv(io.BytesIO(content), sep=None, engine='python')
-            
+        
+        # удаляем колонки "Unnamed" (индексы из исходного CSV)
+        df_orig = df_orig.loc[:, ~df_orig.columns.str.contains('^Unnamed')]
+        
         df_predict = df_orig.copy()
         if await check_data_format(df_predict):
             prices = get_model_predict(df_predict)
             df_orig['Предсказанная_Цена'] = np.round(prices.flatten(), 2)
             
-            # Сохранение каждой строки в БД если пользователь авторизован
+            # сохранение каждой строки в БД если пользователь авторизован
             if user_id:
                 for idx, row in df_orig.iterrows():
                     input_data = row.drop('Предсказанная_Цена').to_dict()
+                    
+                    # преобразуем значения в JSON-совместимые
+                    input_data_clean = {}
+                    for key, value in input_data.items():
+                        if pd.isna(value):
+                            input_data_clean[key] = None
+                        elif isinstance(value, (np.integer, np.floating)):
+                            input_data_clean[key] = float(value) if isinstance(value, np.floating) else int(value)
+                        else:
+                            input_data_clean[key] = str(value) if value is not None else None
+                    
                     predicted_price = row['Предсказанная_Цена']
                     await run_execute(
                         request.app,
                         "INSERT INTO predictions_history (user_id, input_data, predicted_price) VALUES (%s, %s, %s)",
-                        user_id, json.dumps(input_data, ensure_ascii=False), predicted_price
+                        user_id, json.dumps(input_data_clean, ensure_ascii=False), predicted_price
                     )
             
             output = io.StringIO()
@@ -227,27 +261,26 @@ async def file_handler(request: web.Request):
 
 @routes.get("/api/predictions-history/{user_id}")
 async def get_predictions_history(request: web.Request):
+    """Возвращает историю предсказаний пользователя."""
     try:
         user_id = request.match_info['user_id']
         
-        # Получение параметра limit из query string (по умолчанию 50)
+        # историю запросов возвращаем (по умолчанию 50)
         limit = request.query.get('limit', 50)
         try:
             limit = int(limit)
             if limit < 1:
                 limit = 1
-            if limit > 1000:
-                limit = 1000
         except ValueError:
             limit = 50
         
-        # Получение истории из БД
+        # получение истории из БД
         records = await run_fetchall_predictions_history(request.app, user_id, limit)
         
         if not records:
             return web.json_response({"history": []}, status=200)
         
-        # Преобразование результатов
+        # преобразование результатов
         history = []
         for record in records:
             history.append({
@@ -261,7 +294,49 @@ async def get_predictions_history(request: web.Request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+
+@routes.post("/api/hide-prediction/{prediction_id}/{user_id}")
+async def hide_prediction(request: web.Request):
+    """Скрывает отдельное предсказание пользователя из истории (soft delete)."""
+    try:
+        prediction_id = request.match_info['prediction_id']
+        user_id = request.match_info['user_id']
+        
+        try:
+            prediction_id = int(prediction_id)
+            user_id = int(user_id)
+        except ValueError:
+            return web.json_response({"error": "Invalid ID format"}, status=400)
+        
+        success = await run_hide_prediction(request.app, prediction_id, user_id)
+        
+        if success:
+            return web.json_response({"success": True}, status=200)
+        else:
+            return web.json_response({"error": "Record not found"}, status=404)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@routes.post("/api/hide-all-predictions/{user_id}")
+async def hide_all_predictions(request: web.Request):
+    """Скрывает все предсказания пользователя из истории (soft delete)."""
+    try:
+        user_id = request.match_info['user_id']
+        
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return web.json_response({"error": "Invalid ID format"}, status=400)
+        
+        count = await run_hide_all_predictions(request.app, user_id)
+        
+        return web.json_response({"success": True, "hidden_count": count}, status=200)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 async def make_app():
+    """Создаёт и конфигурирует приложение aiohttp с CORS, маршрутами и БД."""
     app = web.Application(client_max_size=1024**2*50)
     load_local_model()
     
@@ -270,13 +345,16 @@ async def make_app():
     app.on_cleanup.append(close_db)
     
     app.add_routes(routes)
+
+    # c каких источников принимаем запросы
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
-            allow_credentials=True, 
-            expose_headers="*", 
-            allow_headers="*"
+            allow_credentials=True,  # разрешить отправку cookies и авторизации
+            expose_headers="*", #  позволить клиенту видеть все заголовки ответа
+            allow_headers="*" # позволить клиенту отправлять любые заголовки
         )
     })
+
     for route in list(app.router.routes()): 
         cors.add(route)
     return app

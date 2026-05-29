@@ -33,7 +33,14 @@
             </div>
             <div class="form-group">
                 <label>Категория цены</label>
-                <input type="text" id="categoryPrice" placeholder="Опт/Розница">
+                <select id="categoryPrice" required>
+                    <option value="">-- Выберите категорию --</option>
+                    <option value="р./т">р./т (за тонну)</option>
+                    <option value="р./пог.м">р./пог.м (за пог. метр)</option>
+                    <option value="р./шт.">р./шт. (за штуку)</option>
+                    <option value="р./кг">р./кг (за килограмм)</option>
+                    <option value="р./м2">р./м2 (за кв. метр)</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Основная марка</label>
@@ -106,7 +113,7 @@
         <p class="result-value" id="price-display">0 ₽</p>
     </div>
 
-    <!-- История запросов -->
+    <!-- история запросов -->
     <div class="card" id="history-section">
         <h2>История запросов</h2>
         <div class="history-controls">
@@ -132,6 +139,35 @@
     </footer>
 </div>
 
+<!-- модальное окно для подробной информации -->
+<div id="details-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Подробная информация о запросе</h2>
+            <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="closeDetailsModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!--модальное окно подтверждения удаления -->
+<div id="confirm-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-confirm">
+        <div class="modal-header">
+            <h2>Подтверждение</h2>
+        </div>
+        <div class="modal-body" id="confirm-text">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeConfirmModal()">Отмена</button>
+            <button class="btn btn-danger" onclick="confirmAction()">Подтвердить</button>
+        </div>
+    </div>
+</div>
 
 <script src="script.js"></script>
 

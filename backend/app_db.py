@@ -39,7 +39,7 @@ def init_db_sync():
                     name VARCHAR(100) NOT NULL,
                     email VARCHAR(150) UNIQUE NOT NULL,
                     password_hash VARCHAR(64) NOT NULL,
-                    role_id INTEGER REFERENCES roles(id),
+                    role_id INTEGER REFERENCES roles(id) NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -64,8 +64,15 @@ def init_db_sync():
                     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     input_data TEXT NOT NULL,
                     predicted_price NUMERIC(15, 2) NOT NULL,
+                    is_hidden BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
+            """)
+
+            # добавляем колонку is_hidden если её нет (для существующих БД)
+            cur.execute("""
+                ALTER TABLE predictions_history
+                ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE
             """)
 
             # дефолтные роли
@@ -77,7 +84,7 @@ def init_db_sync():
                 ON CONFLICT (id) DO NOTHING
             """)
 
-            # сброс последовательности генерации ID для роли
+            # синхронизация последовательности генерации ID для роли
             cur.execute("""
                 SELECT setval(pg_get_serial_sequence('roles', 'id'), coalesce(max(id), 1)) FROM roles;
             """)
@@ -110,14 +117,14 @@ def sync_fetchrow(db_pool, query, params):
 
 
 def sync_fetchall_predictions_history(db_pool, user_id, limit):
-    """Синхронное получение истории предсказаний пользователя."""
+    """Синхронное получение истории предсказаний пользователя (только видимые записи)."""
     conn = db_pool.getconn()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT id, input_data, predicted_price, created_at 
                 FROM predictions_history 
-                WHERE user_id = %s 
+                WHERE user_id = %s AND is_hidden = FALSE
                 ORDER BY created_at DESC 
                 LIMIT %s
             """, (user_id, limit))
@@ -157,3 +164,43 @@ async def run_fetchrow(app, query, *params):
 async def run_fetchall_predictions_history(app, user_id, limit):
     """Асинхронное получение истории предсказаний пользователя."""
     return await asyncio.to_thread(sync_fetchall_predictions_history, app['db_pool'], user_id, limit)
+
+
+def sync_hide_prediction(db_pool, prediction_id, user_id):
+    """Скрытие одной записи из истории (soft delete)."""
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE predictions_history SET is_hidden = TRUE WHERE id = %s AND user_id = %s",
+                (prediction_id, user_id)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+    finally:
+        db_pool.putconn(conn)
+
+
+def sync_hide_all_predictions(db_pool, user_id):
+    """Скрытие всех записей пользователя (soft delete)."""
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE predictions_history SET is_hidden = TRUE WHERE user_id = %s",
+                (user_id,)
+            )
+            conn.commit()
+            return cur.rowcount
+    finally:
+        db_pool.putconn(conn)
+
+
+async def run_hide_prediction(app, prediction_id, user_id):
+    """Асинхронное скрытие одной записи."""
+    return await asyncio.to_thread(sync_hide_prediction, app['db_pool'], prediction_id, user_id)
+
+
+async def run_hide_all_predictions(app, user_id):
+    """Асинхронное скрытие всех записей."""
+    return await asyncio.to_thread(sync_hide_all_predictions, app['db_pool'], user_id)
