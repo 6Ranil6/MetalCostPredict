@@ -46,25 +46,79 @@ function renderUserStatus() {
 function handleLogout() {
     localStorage.removeItem('user');
     renderUserStatus();
+    updateNavButtonsAccess();
     
     // если пользователь вышел, находясь на странице личного кабинета - перезагружаем форму
     if (document.getElementById('login-form')) {
         window.location.reload();
+    } else {
+        // иначе перенаправляем на главную
+        window.location.href = 'index.html';
     }
 }
 
-// проверка авторизации для доступа к калькулятору
-function requireAuthorizationForCalculator() {
+// функция для контроля доступности кнопок на главной странице
+function updateNavButtonsAccess() {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user) {
-        alert('Доступ к калькулятору требует авторизации. Пожалуйста, войдите или зарегистрируйтесь.');
-        window.location.href = 'auth.html';
-    }
+    const navCards = document.querySelectorAll('a.nav-card');
+    
+    navCards.forEach(card => {
+        const href = card.getAttribute('href');
+        
+        if (href === 'auth.html') {
+            if (user) {
+                // пользователь авторизован - кнопка "Личный кабинет" неактивна
+                card.style.pointerEvents = 'none';
+                card.style.opacity = '0.5';
+                card.style.cursor = 'not-allowed';
+                card.title = 'Вы уже авторизованы';
+                card.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    alert('Вы уже вошли в систему. Используйте кнопку "Выйти" в панели профиля.');
+                    return false;
+                };
+            } else {
+                // пользователь не авторизован - кнопка активна
+                card.style.pointerEvents = 'auto';
+                card.style.opacity = '1';
+                card.style.cursor = 'pointer';
+                card.title = '';
+                card.onclick = null;
+            }
+        } else if (href === 'calc.html' || href === 'feedback.html') {
+            if (!user) {
+                // пользователь не авторизован - делаем кнопки неактивными
+                card.style.pointerEvents = 'none';
+                card.style.opacity = '0.5';
+                card.style.cursor = 'not-allowed';
+                card.title = 'Требуется авторизация';
+                card.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const actionText = href === 'calc.html' ? 'доступа к калькулятору' : 'отправки обратной связи';
+                    alert(`Для ${actionText} необходимо войти или зарегистрироваться.`);
+                    window.location.href = 'auth.html';
+                    return false;
+                };
+            } else {
+                // пользователь авторизован - кнопки активны
+                card.style.pointerEvents = 'auto';
+                card.style.opacity = '1';
+                card.style.cursor = 'pointer';
+                card.title = '';
+                card.onclick = null;
+            }
+        }
+    });
 }
 
 // инициализация при загрузке документа
 document.addEventListener('DOMContentLoaded', () => {
     renderUserStatus();
+    
+    // обновляем доступность кнопок на главной странице
+    updateNavButtonsAccess();
     
     // автоматическое заполнение имени и почты на странице обратной связи для авторизованных пользователей
     const user = JSON.parse(localStorage.getItem('user'));
@@ -79,7 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (user && document.getElementById('history-section')) {
         document.getElementById('history-section').style.display = 'block';
         loadPredictionsHistory();
+        setupHistoryFilterListeners();
     }
+    
+    // инициализируем слушатели для контроля доступности кнопок
+    setupFieldListeners();
+    
+    // инициализируем состояние кнопки
+    updateCalculateButtonState();
 });
 
 
@@ -107,6 +168,37 @@ function setMode(mode) { // устанавливаем тип ввода
     if (resultBox) {
         resultBox.style.display = 'none';
     }
+    
+    // обновляем состояние кнопки при переключении режима
+    updateCalculateButtonState();
+}
+
+// функция для проверки доступности кнопки "рассчитать"
+function updateCalculateButtonState() {
+    const btn = document.querySelector('.calculate-btn');
+    if (!btn) return;
+
+    if (currentMode === 'manual') {
+        const categoryPrice = document.getElementById('categoryPrice').value;
+        btn.disabled = !categoryPrice;
+    } else {
+        const fileInput = document.getElementById('file-input');
+        btn.disabled = !fileInput || !fileInput.files || fileInput.files.length === 0;
+    }
+}
+
+// добавляем слушатели на изменение критичных полей
+function setupFieldListeners() {
+    const categoryPrice = document.getElementById('categoryPrice');
+    const fileInput = document.getElementById('file-input');
+
+    if (categoryPrice) {
+        categoryPrice.addEventListener('change', updateCalculateButtonState);
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', updateCalculateButtonState);
+    }
 }
 
 function handleFile(input) { // показываем название выбранного файла
@@ -123,13 +215,6 @@ async function calculate() {
 
     if (!btn || !resultBox || !priceDisplay) return;
 
-    // Проверяем, что категория цены выбрана
-    const categoryPrice = document.getElementById('categoryPrice').value;
-    if (!categoryPrice) {
-        alert('Пожалуйста, выберите категорию цены из списка');
-        return;
-    }
-
     btn.textContent = "Считаем...";
     btn.disabled = true;
 
@@ -141,6 +226,15 @@ async function calculate() {
         let response;
 
         if (currentMode === 'manual') {
+            // Проверяем, что категория цены выбрана ТОЛЬКО для ручного ввода
+            const categoryPrice = document.getElementById('categoryPrice').value;
+            if (!categoryPrice) {
+                showInfoModal('Пожалуйста, выберите категорию цены из списка', 'Внимание');
+                btn.textContent = "Рассчитать стоимость";
+                btn.disabled = false;
+                return;
+            }
+
             const formData = {
                 'user_id': userId, // Передается на бэкенд для привязки к predictions_history
                 'Наименование': document.getElementById('name').value,
@@ -179,7 +273,7 @@ async function calculate() {
         } else {
             const fileInput = document.getElementById('file-input');
             if (!fileInput || !fileInput.files[0]) {
-                alert("Пожалуйста, выберите файл перед отправкой.");
+                showInfoModal("Пожалуйста, выберите файл перед отправкой.", "Внимание");
                 btn.textContent = "Рассчитать стоимость";
                 btn.disabled = false;
                 return;
@@ -194,7 +288,10 @@ async function calculate() {
                 body: fileData 
             });
 
-            if (!response.ok) throw new Error('Ошибка при пакетной обработке файла');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при обработке файла');
+            }
 
             const blob = await response.blob(); 
             const url = window.URL.createObjectURL(blob); 
@@ -217,7 +314,7 @@ async function calculate() {
 
     } catch (error) {
         console.error("Ошибка запроса:", error);
-        alert(error.message || "Произошла непредвиденная ошибка. Проверьте соединение с бэкендом.");
+        showInfoModal(error.message || "Произошла непредвиденная ошибка. Проверьте соединение с бэкендом.", "Ошибка расчета");
     } finally {
         btn.textContent = "Рассчитать стоимость";
         btn.disabled = false;
@@ -269,6 +366,9 @@ async function handleAuthSubmit(event, type) {
             // сохраняем сессию в localStorage
             localStorage.setItem('user', JSON.stringify(data));
             
+            // обновляем состояние доступа к кнопкам
+            updateNavButtonsAccess();
+            
             // переадресовываем на главную
             window.location.href = "index.html";
         } else {
@@ -278,7 +378,8 @@ async function handleAuthSubmit(event, type) {
             const confirmPassword = inputs[3].value;
             
             if (password !== confirmPassword) {
-                throw new Error("Введенные пароли не совпадают!");
+                showInfoModal("Введенные пароли не совпадают!", "Ошибка регистрации");
+                return;
             }
             
             const response = await fetch('http://127.0.0.1:5111/api/register', {
@@ -297,7 +398,7 @@ async function handleAuthSubmit(event, type) {
         event.target.reset();
     } catch (error) {
         console.error("Ошибка аутентификации:", error);
-        alert(error.message);
+        showInfoModal(error.message, "Ошибка аутентификации");
     }
 }
 
@@ -343,7 +444,7 @@ async function handleFeedbackSubmit(event) {
         }
     } catch (error) {
         console.error("Ошибка отправки фидбека:", error);
-        alert(error.message);
+        showInfoModal(error.message, "Ошибка отправки");
     }
 }
 
@@ -372,10 +473,13 @@ async function loadPredictionsHistory() {
             throw new Error('Некорректный формат ответа от сервера');
         }
         
-        const history = data.history || [];
+        let history = data.history || [];
+        
+        // Применяем фильтры
+        history = applyHistoryFilters(history);
 
         if (history.length === 0) {
-            historyList.innerHTML = '<p class="history-empty">История запросов пуста</p>';
+            historyList.innerHTML = '<p class="history-empty">История запросов пуста или не соответствует фильтрам</p>';
             return;
         }
 
@@ -412,6 +516,62 @@ async function loadPredictionsHistory() {
     } catch (error) {
         console.error("Ошибка загрузки истории:", error);
         historyList.innerHTML = `<p class="history-empty" style="color: red;">Ошибка: ${error.message || 'неизвестная ошибка'}</p>`;
+    }
+}
+
+// Функция для применения фильтров к истории запросов
+function applyHistoryFilters(history) {
+    const searchInput = document.getElementById('history-search');
+    const priceFilter = document.getElementById('history-price-filter');
+    
+    let filtered = history;
+    
+    // Фильтр по поиску в названии
+    if (searchInput && searchInput.value.trim()) {
+        const searchText = searchInput.value.toLowerCase().trim();
+        filtered = filtered.filter(item => {
+            const productName = (item.input_data && item.input_data['Наименование']) || '';
+            return productName.toLowerCase().includes(searchText);
+        });
+    }
+    
+    // Фильтр по категории цены
+    if (priceFilter && priceFilter.value) {
+        const selectedPrice = priceFilter.value;
+        filtered = filtered.filter(item => {
+            const priceCategory = (item.input_data && item.input_data['Категория_цены']) || '';
+            return priceCategory === selectedPrice;
+        });
+    }
+    
+    return filtered;
+}
+
+// Добавляем слушатели на фильтры при загрузке страницы
+function setupHistoryFilterListeners() {
+    const searchInput = document.getElementById('history-search');
+    const priceFilter = document.getElementById('history-price-filter');
+    const limitInput = document.getElementById('history-limit');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', loadPredictionsHistory);
+    }
+    
+    if (priceFilter) {
+        priceFilter.addEventListener('change', loadPredictionsHistory);
+    }
+    
+    if (limitInput) {
+        limitInput.addEventListener('change', () => {
+            const value = parseInt(limitInput.value);
+            if (value > 5000) {
+                showInfoModal('Мы сожалеем об ограничениях. Максимальное количество запросов для отображения - 5000. Вывести больше 5000 запросов нельзя.', 'Превышен лимит');
+                limitInput.value = 5000;
+            } else if (value < 0) {
+                limitInput.value = 5;
+            }
+            loadPredictionsHistory();
+        });
     }
 }
 
@@ -458,7 +618,7 @@ async function clearAllHistory(userId) {
         closeConfirmModal();
     } catch (error) {
         console.error("Ошибка очистки истории:", error);
-        alert(`Ошибка: ${error.message}`);
+        showInfoModal(`Ошибка: ${error.message}`, "Ошибка удаления");
     }
 }
 
@@ -481,7 +641,7 @@ async function deleteHistoryItem(predictionId) {
         loadPredictionsHistory();
     } catch (error) {
         console.error("Ошибка удаления записи:", error);
-        alert(`Ошибка: ${error.message}`);
+        showInfoModal(`Ошибка: ${error.message}`, "Ошибка удаления");
     }
 }
 
@@ -520,7 +680,7 @@ function showHistoryDetails(inputData) {
         }
     } catch (error) {
         console.error('Ошибка при отображении деталей:', error);
-        alert('Ошибка при загрузке деталей запроса');
+        showInfoModal('Ошибка при загрузке деталей запроса', "Ошибка");
     }
 }
 
@@ -530,6 +690,30 @@ function closeDetailsModal() {
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+// Функция для показа информационного модального окна (вместо alert)
+function showInfoModal(message, title = 'Уведомление') {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content modal-confirm">
+            <div class="modal-header">
+                <h2>${escapeHtml(title)}</h2>
+            </div>
+            <div class="modal-body">
+                <p>${escapeHtml(message)}</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Закрыть</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 }
 
 // Переменная для сохранения callback функции подтверждения

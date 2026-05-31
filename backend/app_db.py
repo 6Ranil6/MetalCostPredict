@@ -10,7 +10,7 @@ import psycopg2
 import psycopg2.extras
 from psycopg2 import pool
 
-PG_DSN = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
+PG_DSN = os.getenv("DATABASE_URL")
 
 
 def hash_password(password: str) -> str:

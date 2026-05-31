@@ -394,6 +394,19 @@ footer a:hover {
     border-radius: 0.5rem;
 }
 
+.history-filter-control {
+    flex: 1;
+    min-width: 150px;
+}
+
+.history-filter-input {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+}
+
 .btn {
     padding: 0.6rem 1.2rem;
     border: none;
@@ -633,6 +646,169 @@ footer a:hover {
     background: #dc2626;
 }
 
+/* стили для отключенной кнопки */
+.calculate-btn:disabled {
+    background: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+    transform: none;
+}
+
+.calculate-btn:disabled:hover {
+    background: #cccccc;
+    transform: none;
+    box-shadow: none;
+}
+
+/* стили для таблиц CSV */
+.table-wrapper {
+    /* контейнер для таблицы с горизонтальным скроллом */
+    width: 100%;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 0.75rem;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    -webkit-overflow-scrolling: touch;
+}
+
+.csv-table {
+    /* таблица с примерами данных */
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    background: white;
+    table-layout: auto;
+}
+
+.csv-table tr {
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s;
+}
+
+.csv-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.csv-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.csv-table tr:nth-child(even):hover {
+    background-color: #f5f5f5;
+}
+
+.csv-table td {
+    padding: 1rem 0.8rem;
+    text-align: left;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    font-size: 0.75rem;
+    color: var(--text-main);
+    vertical-align: middle;
+    line-height: 1.3;
+    min-width: 60px;
+}
+
+.csv-table tr:first-child td {
+    /* заголовок таблицы */
+    background-color: #fff0e0;
+    font-weight: bold;
+    color: var(--primary);
+    padding: 1rem 0.8rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: center;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+/* стили для информационных секций */
+.info-card {
+    max-width: 100%;
+}
+
+.info-intro {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-main);
+    margin-bottom: 2rem;
+}
+
+.info-section-group {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(255, 123, 0, 0.1);
+}
+
+.info-section-group:last-of-type {
+    border-bottom: none;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0;
+}
+
+.info-section-group h3 {
+    font-size: 1.15rem;
+    color: var(--primary);
+    margin-bottom: 1.2rem;
+    font-weight: 700;
+}
+
+.info-item {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #fffcf9;
+    border-left: 3px solid var(--primary);
+    border-radius: 0.5rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-item strong {
+    display: block;
+    color: var(--primary);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.info-item p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.info-tip {
+    /* совет для пользователя */
+    padding: 1.5rem;
+    background: #f0fdf4;
+    border: 2px solid var(--success);
+    border-radius: 1rem;
+    margin-top: 2rem;
+}
+
+.info-tip strong {
+    display: block;
+    color: var(--success);
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.info-tip {
+    /* совет для пользователя */
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-main);
+}
 @media (max-width: 480px) {
     body {
         padding: 1rem 0.5rem;
@@ -695,5 +871,25 @@ footer a:hover {
         text-align: left;
         margin-left: 0;
         margin-top: 0.7rem;
+    }
+
+    .csv-table {
+        font-size: 0.75rem;
+        min-width: 600px;
+    }
+
+    .csv-table td {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    .csv-table tr:first-child td {
+        padding: 0.6rem 0.5rem;
+        font-size: 0.7rem;
+    }
+
+    .table-wrapper {
+        margin: 1rem 0;
+        border-radius: 0.5rem;
     }
 }

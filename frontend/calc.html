@@ -118,11 +118,27 @@
         <h2>История запросов</h2>
         <div class="history-controls">
             <div class="history-limit-control">
-                <label for="history-limit">Количество запросов:</label>
+                <label for="history-limit">Количество:</label>
                 <input type="number" id="history-limit" min="5" max="1000" value="50" step="5">
             </div>
-            <button class="btn btn-primary" onclick="loadPredictionsHistory()">Обновить историю</button>
-            <button class="btn btn-secondary" onclick="clearHistoryView()">Очистить</button>
+            
+            <!-- фильтры -->
+            <div class="history-filter-control">
+                <input type="text" id="history-search" placeholder="Поиск по названию товара..." class="history-filter-input">
+            </div>
+            
+            <div class="history-filter-control">
+                <select id="history-price-filter" class="history-filter-input">
+                    <option value="">Все категории цены</option>
+                    <option value="р./т">р./т (за тонну)</option>
+                    <option value="р./пог.м">р./пог.м (за пог. метр)</option>
+                    <option value="р./шт.">р./шт. (за штуку)</option>
+                    <option value="р./кг">р./кг (за килограмм)</option>
+                    <option value="р./м2">р./м2 (за кв. метр)</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="clearHistoryView()">Удалить все записи</button>
         </div>
         <div id="history-list" class="history-list">
             <p class="history-empty">Загрузка истории...</p>
@@ -170,13 +186,5 @@
 </div>
 
 <script src="script.js"></script>
-
-<script>
-    // проверяем авторизацию сразу при загрузке страницы
-    document.addEventListener('DOMContentLoaded', () => {
-        requireAuthorizationForCalculator();
-    });
-</script>
-
 </body>
 </html>

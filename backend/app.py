@@ -127,7 +127,7 @@ async def login_handler(request: web.Request):
                WHERE email = %s AND password_hash = %s""",
             email, password_hash
         )
-        
+
         if not user:
             # 401 - отсутствие авторизации
             return web.json_response({"error": "Неверный логин или пароль"}, status=401)
@@ -207,15 +207,43 @@ async def file_handler(request: web.Request):
         user_id = data.get('user_id')
         
         if not file_field: 
-            return web.json_response({"error": "No file"}, status=400)
+            return web.json_response({"error": "Файл не выбран. Пожалуйста, выберите файл для загрузки."}, status=400)
             
         content = file_field.file.read()
         filename = file_field.filename.lower()
         
-        if filename.endswith('.parquet'):
-            df_orig = pd.read_parquet(io.BytesIO(content))
-        else:
-            df_orig = pd.read_csv(io.BytesIO(content), sep=None, engine='python')
+        # Проверка на пустой файл
+        if not content or len(content) == 0:
+            return web.json_response({"error": "Загруженный файл пуст. Пожалуйста, выберите файл с данными."}, status=400)
+        
+        # Попытка прочитать
+        try:
+            if filename.endswith('.parquet'):
+                df_orig = pd.read_parquet(io.BytesIO(content))
+            elif filename.endswith('.csv'):
+                df_orig = pd.read_csv(io.BytesIO(content), sep=None, engine='python')
+            else:
+                return web.json_response({"error": f"Неподдерживаемый формат файла '{filename}'. Пожалуйста, используйте CSV или Parquet."}, status=400)
+        except pd.errors.EmptyDataError:
+            return web.json_response({"error": "Файл пуст или содержит только заголовок. Пожалуйста, добавьте данные в файл."}, status=400)
+        except Exception as e:
+            return web.json_response({"error": f"Ошибка при чтении файла: {str(e)}"}, status=400)
+        
+        if df_orig.empty:
+            return web.json_response({"error": "Файл не содержит данных. Пожалуйста, убедитесь, что файл содержит хотя бы одну строку с данными."}, status=400)
+        
+        # Проверка на наличие ОБЯЗАТЕЛЬНОЙ колонки "Категория_цены"
+        if 'Категория_цены' not in df_orig.columns:
+            return web.json_response({"error": "КРИТИЧЕСКАЯ ОШИБКА: Колонка 'Категория_цены' не найдена в файле. Эта колонка обязательна для обработки. Пожалуйста, добавьте колонку 'Категория_цены' в ваш файл."}, status=400)
+        
+        # проверка на наличие требуемых колонок
+        missing_required_columns = [col for col in IMPORTANT_FEATURES if col not in df_orig.columns]
+        if len(missing_required_columns) == len(IMPORTANT_FEATURES):
+            return web.json_response({"error": f"Файл не содержит требуемые колонки. Ожидаемые колонки: {', '.join(IMPORTANT_FEATURES)}"}, status=400)
+        
+        # предупреждение: если отсутствуют некоторые колонки (но не критично)
+        if missing_required_columns:
+            print(f"Предупреждение: отсутствуют колонки: {missing_required_columns}. Они будут заполнены значением 'отсутствует'.")
         
         # удаляем колонки "Unnamed" (индексы из исходного CSV)
         df_orig = df_orig.loc[:, ~df_orig.columns.str.contains('^Unnamed')]
@@ -254,9 +282,9 @@ async def file_handler(request: web.Request):
                 content_type='text/csv',
                 headers={'Content-Disposition': 'attachment; filename="result.csv"'}
             )
-        return web.json_response({"error": "Data validation failed"}, status=400)
+        return web.json_response({"error": "Ошибка валидации данных: не удалось обработать формат данных в файле. Проверьте соответствие структуры файла требованиям."}, status=400)
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
+        return web.json_response({"error": f"Ошибка сервера при обработке файла. Пожалуйста, попробуйте позже."}, status=500)
 
 
 @routes.get("/api/predictions-history/{user_id}")

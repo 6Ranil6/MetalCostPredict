@@ -69,5 +69,16 @@
 </div>
 
 <script src="script.js"></script>
+
+<script>
+    // проверяем авторизацию при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        // если пользователь уже авторизован - перенаправляем на главную
+        if (user) {
+            window.location.href = 'index.html';
+        }
+    });
+</script>
 </body>
 </html>
