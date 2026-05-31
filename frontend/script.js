@@ -204,7 +204,18 @@ function setupFieldListeners() {
 function handleFile(input) { // показываем название выбранного файла
     const fileNameDisplay = document.getElementById('file-name');
     if (fileNameDisplay && input.files && input.files[0]) {
-        fileNameDisplay.textContent = input.files[0].name;
+        const file = input.files[0];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (file.size > maxSize) {
+            showInfoModal(`Файл слишком большой (${(file.size / 1024 / 1024).toFixed(2)} МБ). Максимальный размер — 5 МБ.`, "Ошибка файла");
+            input.value = ""; // Сбрасываем выбор
+            fileNameDisplay.textContent = "";
+            updateCalculateButtonState();
+            return;
+        }
+
+        fileNameDisplay.textContent = file.name;
     }
 }
 

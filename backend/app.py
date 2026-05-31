@@ -198,10 +198,16 @@ async def manual_handler(request: web.Request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
 @routes.post("/predict-file")
 async def file_handler(request: web.Request):
     """Обрабатывает загруженный файл (CSV/Parquet) и возвращает результаты с предсказаниями."""
     try:
+        # Проверка размера через заголовки
+        if request.content_length and request.content_length > MAX_FILE_SIZE:
+            return web.json_response({"error": "Файл слишком большой. Максимальный размер — 5МБ"}, status=413)
+
         data = await request.post()
         file_field = data.get('file')
         user_id = data.get('user_id')
@@ -210,6 +216,10 @@ async def file_handler(request: web.Request):
             return web.json_response({"error": "Файл не выбран. Пожалуйста, выберите файл для загрузки."}, status=400)
             
         content = file_field.file.read()
+        
+        if len(content) > MAX_FILE_SIZE:
+            return web.json_response({"error": "Файл превышает лимит 5МБ"}, status=413)
+            
         filename = file_field.filename.lower()
         
         # Проверка на пустой файл
@@ -365,7 +375,7 @@ async def hide_all_predictions(request: web.Request):
 
 async def make_app():
     """Создаёт и конфигурирует приложение aiohttp с CORS, маршрутами и БД."""
-    app = web.Application(client_max_size=1024**2*50)
+    app = web.Application(client_max_size=1024**2*10) # Ограничение 10МБ на весь запрос
     load_local_model()
     
     # регестрация функции при старте/выключении сервера
