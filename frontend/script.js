@@ -1,4 +1,5 @@
 let currentMode = 'manual'; // ручной ввод или загрузка файла
+let fieldOptions = {}; // кэш для значений из field_options.json
 
 function renderUserStatus() {
     const container = document.querySelector('.container');
@@ -115,6 +116,7 @@ function updateNavButtonsAccess() {
 
 // инициализация при загрузке документа
 document.addEventListener('DOMContentLoaded', () => {
+    loadFieldOptions(); // загружаем значения для dropdown селектов
     renderUserStatus();
     
     // обновляем доступность кнопок на главной странице
@@ -237,7 +239,7 @@ async function calculate() {
         let response;
 
         if (currentMode === 'manual') {
-            // Проверяем, что категория цены выбрана ТОЛЬКО для ручного ввода
+            // проверяем, что категория цены выбрана ТОЛЬКО для ручного ввода
             const categoryPrice = document.getElementById('categoryPrice').value;
             if (!categoryPrice) {
                 showInfoModal('Пожалуйста, выберите категорию цены из списка', 'Внимание');
@@ -247,7 +249,7 @@ async function calculate() {
             }
 
             const formData = {
-                'user_id': userId, // Передается на бэкенд для привязки к predictions_history
+                'user_id': userId, // передается на бэкенд для привязки к predictions_history
                 'Наименование': document.getElementById('name').value,
                 'Категория_цены': categoryPrice,
                 'Основная_марка': document.getElementById('mainBrand').value,
@@ -459,7 +461,7 @@ async function handleFeedbackSubmit(event) {
     }
 }
 
-// Функция для загрузки истории предсказаний пользователя
+// функция для загрузки истории предсказаний пользователя
 async function loadPredictionsHistory() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
@@ -486,7 +488,7 @@ async function loadPredictionsHistory() {
         
         let history = data.history || [];
         
-        // Применяем фильтры
+        // применяем фильтры
         history = applyHistoryFilters(history);
 
         if (history.length === 0) {
@@ -494,7 +496,7 @@ async function loadPredictionsHistory() {
             return;
         }
 
-        // Формируем HTML для истории
+        // формируем HTML для истории
         let historyHTML = '';
         history.forEach((item, index) => {
             try {
@@ -530,14 +532,14 @@ async function loadPredictionsHistory() {
     }
 }
 
-// Функция для применения фильтров к истории запросов
+// функция для применения фильтров к истории запросов
 function applyHistoryFilters(history) {
     const searchInput = document.getElementById('history-search');
     const priceFilter = document.getElementById('history-price-filter');
     
     let filtered = history;
     
-    // Фильтр по поиску в названии
+    // фильтр по поиску в названии
     if (searchInput && searchInput.value.trim()) {
         const searchText = searchInput.value.toLowerCase().trim();
         filtered = filtered.filter(item => {
@@ -546,7 +548,7 @@ function applyHistoryFilters(history) {
         });
     }
     
-    // Фильтр по категории цены
+    // фильтр по категории цены
     if (priceFilter && priceFilter.value) {
         const selectedPrice = priceFilter.value;
         filtered = filtered.filter(item => {
@@ -598,19 +600,18 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
-// Функция для очистки отображения истории
+// функция для очистки отображения истории
 function clearHistoryView() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
 
-    // Показываем модальное окно подтверждения
     showConfirmModal(
         'Вы уверены, что хотите очистить всю историю запросов?',
         () => clearAllHistory(user.id)
     );
 }
 
-// Функция для очистки всей истории (soft delete)
+// функция для очистки всей истории
 async function clearAllHistory(userId) {
     try {
         const response = await fetch(`http://127.0.0.1:5111/api/hide-all-predictions/${userId}`, {
@@ -633,7 +634,7 @@ async function clearAllHistory(userId) {
     }
 }
 
-// Функция для удаления одного элемента истории (soft delete)
+// функция для удаления одного элемента истории
 async function deleteHistoryItem(predictionId) {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
@@ -648,7 +649,7 @@ async function deleteHistoryItem(predictionId) {
             throw new Error(data.error || 'Ошибка при удалении записи');
         }
 
-        // Перезагружаем историю
+        // перезагружаем историю
         loadPredictionsHistory();
     } catch (error) {
         console.error("Ошибка удаления записи:", error);
@@ -656,7 +657,7 @@ async function deleteHistoryItem(predictionId) {
     }
 }
 
-// Функция для показа подробной информации о запросе в модальном окне
+// функция для показа подробной информации о запросе в модальном окне
 function showHistoryDetails(inputData) {
     try {
         const modalBody = document.getElementById('modal-body');
@@ -684,9 +685,10 @@ function showHistoryDetails(inputData) {
 
         modalBody.innerHTML = detailsHTML;
 
-        // Открываем модальное окно
+        // открываем модальное окно
         const modal = document.getElementById('details-modal');
         if (modal) {
+            modal.classList.remove('hidden');
             modal.style.display = 'flex';
         }
     } catch (error) {
@@ -695,15 +697,16 @@ function showHistoryDetails(inputData) {
     }
 }
 
-// Функция для закрытия модального окна подробной информации
+// функция для закрытия модального окна подробной информации
 function closeDetailsModal() {
     const modal = document.getElementById('details-modal');
     if (modal) {
+        modal.classList.add('hidden');
         modal.style.display = 'none';
     }
 }
 
-// Функция для показа информационного модального окна (вместо alert)
+// функция для показа информационного модального окна
 function showInfoModal(message, title = 'Уведомление') {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -727,10 +730,10 @@ function showInfoModal(message, title = 'Уведомление') {
     });
 }
 
-// Переменная для сохранения callback функции подтверждения
+// переменная для сохранения callback функции подтверждения
 let confirmCallback = null;
 
-// Функция для показа модального окна подтверждения
+// функция для показа модального окна подтверждения
 function showConfirmModal(message, callback) {
     const confirmText = document.getElementById('confirm-text');
     if (confirmText) {
@@ -740,20 +743,22 @@ function showConfirmModal(message, callback) {
 
     const modal = document.getElementById('confirm-modal');
     if (modal) {
+        modal.classList.remove('hidden');
         modal.style.display = 'flex';
     }
 }
 
-// Функция для закрытия модального окна подтверждения
+// функция для закрытия модального окна подтверждения
 function closeConfirmModal() {
     const modal = document.getElementById('confirm-modal');
     if (modal) {
+        modal.classList.add('hidden');
         modal.style.display = 'none';
     }
     confirmCallback = null;
 }
 
-// Функция для подтверждения действия
+// функция для подтверждения действия
 function confirmAction() {
     if (confirmCallback) {
         confirmCallback();
@@ -761,7 +766,7 @@ function confirmAction() {
     closeConfirmModal();
 }
 
-// Закрытие модальных окон при клике на фон
+// закрытие модальных окон при клике на фон
 document.addEventListener('click', function(event) {
     const detailsModal = document.getElementById('details-modal');
     const confirmModal = document.getElementById('confirm-modal');
@@ -773,3 +778,44 @@ document.addEventListener('click', function(event) {
         closeConfirmModal();
     }
 });
+
+// загрузка значений для dropdown
+async function loadFieldOptions() {
+    try {
+        const response = await fetch('field_options.json');
+        fieldOptions = await response.json();
+        populateSelects();
+    } catch (error) {
+        console.error('Ошибка при загрузке field_options.json:', error);
+    }
+}
+
+// заполнение селектов значениями из field_options.json
+function populateSelects() {
+    const fieldMappings = {
+        'mainBrand': 'Основная_марка',
+        'brand': 'Марка',
+        'materialType': 'Тип_материала',
+        'productType': 'Тип_продукции',
+        'standardType': 'Тип_стандарта',
+        'priceCondition': 'Условие_цены'
+    };
+
+    for (const [elementId, fieldName] of Object.entries(fieldMappings)) {
+        const element = document.getElementById(elementId);
+        if (!element || !fieldOptions[fieldName]) continue;
+
+        // очищаем элемент от старых опций
+        while (element.options.length > 1) {
+            element.remove(1);
+        }
+
+        // добавляем новые опции
+        fieldOptions[fieldName].forEach(value => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            element.appendChild(option);
+        });
+    }
+}

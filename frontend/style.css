@@ -237,7 +237,7 @@ footer a:hover {
 
 .hidden {
     /* скрытый элемент */
-    display: none;
+    display: none !important;
 }
 
 .welcome-text {
@@ -916,4 +916,90 @@ footer a:hover {
         margin: 1rem 0;
         border-radius: 0.5rem;
     }
+}
+
+/* Классы для замены inline стилей */
+.section-title {
+    margin-bottom: 1.5rem;
+}
+
+.info-box {
+    background: #fff4e5;
+    border-left: 4px solid #ff9800;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+}
+
+.info-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #663c00;
+}
+
+.success-text {
+    margin-top: 10px;
+    color: var(--success);
+    font-weight: bold;
+}
+
+.file-formats-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Утилиты для отступов */
+.mt-0 {
+    margin-top: 0;
+}
+
+.mt-md {
+    margin-top: 1rem;
+}
+
+.mb-lg {
+    margin-bottom: 1.2rem;
+}
+
+.mb-xl {
+    margin-bottom: 1.5rem;
+}
+
+/* Стили текста */
+.primary-bold {
+    color: var(--primary);
+    font-weight: bold;
+}
+
+.description-list {
+    margin: 1rem 0 1rem 1.5rem;
+    line-height: 1.8;
+}
+
+.description-text {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.success-feedback-label {
+    color: var(--success);
+    font-weight: bold;
+}
+
+.feedback-description {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+}
+
+/* Цветные кнопки */
+.btn-success {
+    background: var(--success);
+}
+
+.feedback-success-box {
+    background: #f0fdf4;
+    border-color: var(--success);
 }

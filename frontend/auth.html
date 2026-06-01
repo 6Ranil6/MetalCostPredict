@@ -25,36 +25,36 @@
 
         <!-- форма входа -->
         <form id="login-form" onsubmit="handleAuthSubmit(event, 'login')">
-            <div class="form-group" style="margin-bottom: 1.2rem;">
+            <div class="form-group mb-lg">
                 <label>Email / Логин</label>
                 <input type="email" required placeholder="example@mail.ru">
             </div>
-            <div class="form-group" style="margin-bottom: 1.5rem;">
+            <div class="form-group mb-xl">
                 <label>Пароль</label>
                 <input type="password" required placeholder="Введите пароль">
             </div>
-            <button type="submit" class="calculate-btn" style="margin-top: 0;">Войти</button>
+            <button type="submit" class="calculate-btn mt-0">Войти</button>
         </form>
 
         <!-- форма регистрации (скрыта по умолчанию) -->
         <form id="register-form" class="hidden" onsubmit="handleAuthSubmit(event, 'register')">
-            <div class="form-group" style="margin-bottom: 1.2rem;">
+            <div class="form-group mb-lg">
                 <label>Ваше ФИО</label>
                 <input type="text" required placeholder="ФИО">
             </div>
-            <div class="form-group" style="margin-bottom: 1.2rem;">
+            <div class="form-group mb-lg">
                 <label>Email</label>
                 <input type="email" required placeholder="example@mail.ru">
             </div>
-            <div class="form-group" style="margin-bottom: 1.2rem;">
+            <div class="form-group mb-lg">
                 <label>Пароль</label>
                 <input type="password" required placeholder="Создайте пароль">
             </div>
-            <div class="form-group" style="margin-bottom: 1.5rem;">
+            <div class="form-group mb-xl">
                 <label>Подтвердите пароль</label>
                 <input type="password" required placeholder="Повторите пароль">
             </div>
-            <button type="submit" class="calculate-btn" style="margin-top: 0; background: var(--success);">Зарегистрироваться</button>
+            <button type="submit" class="calculate-btn mt-0 btn-success">Зарегистрироваться</button>
         </form>
     </div>
 

@@ -18,7 +18,7 @@
 
     <div class="card feedback-card">
         <form id="feedback-form" onsubmit="handleFeedbackSubmit(event)">
-            <div class="grid" style="margin-bottom: 1.2rem;">
+            <div class="grid mb-lg">
                 <div class="form-group">
                     <label>Ваше имя</label>
                     <input type="text" id="feedback-name" required placeholder="Введите имя">
@@ -29,22 +29,22 @@
                 </div>
             </div>
             
-            <div class="form-group" style="margin-bottom: 1.5rem;">
+            <div class="form-group mb-xl">
                 <label>Тема обращения</label>
                 <input type="text" id="feedback-subject" required placeholder="Например: Не работает загрузка .parquet">
             </div>
 
-            <div class="form-group" style="margin-bottom: 1.5rem;">
+            <div class="form-group mb-xl">
                 <label>Текст сообщения</label>
                 <textarea id="feedback-message" required placeholder="Опишите вашу проблему или предложение во всех подробностях..."></textarea>
             </div>
 
-            <button type="submit" class="calculate-btn" style="margin-top: 0; background: var(--primary);">Отправить сообщение</button>
+            <button type="submit" class="calculate-btn mt-0">Отправить сообщение</button>
         </form>
 
-        <div id="feedback-result" class="result-box" style="background: #f0fdf4; border-color: var(--success);">
-            <p class="result-label" style="color: var(--success); font-weight: bold;">Сообщение успешно отправлено!</p>
-            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.5rem;">Мы ответим вам на указанный Email в ближайшее время.</p>
+        <div id="feedback-result" class="result-box feedback-success-box">
+            <p class="result-label success-feedback-label">Сообщение успешно отправлено!</p>
+            <p class="feedback-description">Мы ответим вам на указанный Email в ближайшее время.</p>
         </div>
     </div>
 

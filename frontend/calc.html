@@ -25,7 +25,7 @@
 
     <div class="card">
         <div id="manual-section">
-            <h2 style="margin-bottom: 1.5rem;">Параметры изделия</h2>
+            <h2 class="section-title">Параметры изделия</h2>
             <div class="grid">
             <div class="form-group">
                 <label>Наименование</label>
@@ -44,19 +44,27 @@
             </div>
             <div class="form-group">
                 <label>Основная марка</label>
-                <input type="text" id="mainBrand" placeholder="а500с">
+                <select id="mainBrand">
+                    <option value="">-- Выберите основную марку --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Марка</label>
-                <input type="text" id="brand" placeholder="Ст3сп">
+                <select id="brand">
+                    <option value="">-- Выберите марку --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Тип материала</label>
-                <input type="text" id="materialType" placeholder="Черный/Нерж">
+                <select id="materialType">
+                    <option value="">-- Выберите материал --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Тип продукции</label>
-                <input type="text" id="productType" placeholder="Арматура">
+                <select id="productType">
+                    <option value="">-- Выберите тип --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Размер A</label>
@@ -80,7 +88,9 @@
             </div>
             <div class="form-group">
                 <label>Тип стандарта</label>
-                <input type="text" id="standardType" placeholder="ГОСТ/ТУ">
+                <select id="standardType">
+                    <option value="">-- Выберите стандарт --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Номер стандарта</label>
@@ -88,17 +98,19 @@
             </div>
             <div class="form-group">
                 <label>Условие цены</label>
-                <input type="text" id="priceCondition" placeholder="от 1 тонны">
+                <select id="priceCondition">
+                    <option value="">-- Выберите условие --</option>
+                </select>
             </div>
         </div>
     </div>
     
     <!-- загрузка файла -->
     <div id="file-section" class="hidden">
-        <h2 style="margin-bottom: 1.5rem;">Загрузка файла</h2>
+        <h2 class="section-title">Загрузка файла</h2>
         
-        <div style="background: #fff4e5; border-left: 4px solid #ff9800; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
-            <p style="margin: 0; font-size: 0.9rem; color: #663c00;">
+        <div class="info-box">
+            <p class="info-text">
                 <strong>Важно:</strong> Максимальный размер файла — <strong>5 МБ</strong>. 
                 Убедитесь, что столбец <strong>"Категория_цены"</strong> заполнен для всех строк, иначе расчет будет некорректным.
             </p>
@@ -107,9 +119,9 @@
         <label for="file-input" class="file-upload-zone">
             <span class="file-icon">📝</span>
             <p>Выберите файл</p>
-            <p style="font-size: 0.875rem; color: var(--text-secondary);">Поддерживаются форматы .csv и .parquet</p>
+            <p class="file-formats-text">Поддерживаются форматы .csv и .parquet</p>
             <input type="file" id="file-input" accept=".csv,.parquet" onchange="handleFile(this)">
-            <p id="file-name" style="margin-top: 10px; color: var(--success); font-weight: bold;"></p>
+            <p id="file-name" class="success-text"></p>
         </label>
     </div>
    
@@ -164,7 +176,7 @@
 </div>
 
 <!-- модальное окно для подробной информации -->
-<div id="details-modal" class="modal" style="display: none;">
+<div id="details-modal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Подробная информация о запросе</h2>
@@ -179,7 +191,7 @@
 </div>
 
 <!--модальное окно подтверждения удаления -->
-<div id="confirm-modal" class="modal" style="display: none;">
+<div id="confirm-modal" class="modal hidden">
     <div class="modal-content modal-confirm">
         <div class="modal-header">
             <h2>Подтверждение</h2>
