@@ -131,13 +131,38 @@ async def login_handler(request: web.Request):
         if not user:
             # 401 - отсутствие авторизации
             return web.json_response({"error": "Неверный логин или пароль"}, status=401)
-            
-        return web.json_response({
+
+        # создаем ответ и устанавливаем cookie с id пользователя
+        resp = web.json_response({
             "id": user["id"],
             "name": user["name"],
             "email": user["email"],
             "role": user["role"]
         }, status=200)
+
+        # HttpOnly cookie с user_id
+        resp.set_cookie(
+            name="user_id",
+            value=str(user["id"]),
+            httponly=True, # недоступны из JS
+            secure=False,
+            samesite='Lax', # базовая защита от CSRF
+            max_age=7*24*3600 # время жизни
+        )
+
+        return resp
+
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@routes.post("/api/logout")
+async def logout_handler(request: web.Request):
+    """Очищает cookie авторизации пользователя."""
+    try:
+        resp = web.json_response({"success": True}, status=200)
+        resp.del_cookie('user_id')
+        return resp
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -171,6 +196,15 @@ async def manual_handler(request: web.Request):
     try:
         data = await request.json()
         user_id = data.pop('user_id', None)
+
+        # если user_id не передали в теле запроса, пытаемся взять из cookie
+        if not user_id:
+            cookie_uid = request.cookies.get('user_id')
+            if cookie_uid:
+                try:
+                    user_id = int(cookie_uid)
+                except ValueError:
+                    user_id = None
         
         df = pd.DataFrame([data])
         if await check_data_format(df):
@@ -211,6 +245,15 @@ async def file_handler(request: web.Request):
         data = await request.post()
         file_field = data.get('file')
         user_id = data.get('user_id')
+
+        # если user_id не передали в форме, пробуем взять из cookie
+        if not user_id:
+            cookie_uid = request.cookies.get('user_id')
+            if cookie_uid:
+                try:
+                    user_id = int(cookie_uid)
+                except ValueError:
+                    user_id = None
         
         if not file_field: 
             return web.json_response({"error": "Файл не выбран. Пожалуйста, выберите файл для загрузки."}, status=400)
@@ -302,6 +345,13 @@ async def get_predictions_history(request: web.Request):
     """Возвращает историю предсказаний пользователя."""
     try:
         user_id = request.match_info['user_id']
+
+        # поддержка специального маркера 'me' для запроса по cookie
+        if user_id in ('me', 'current'):
+            cookie_uid = request.cookies.get('user_id')
+            if not cookie_uid:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            user_id = cookie_uid
         
         # историю запросов возвращаем (по умолчанию 50)
         limit = request.query.get('limit', 50)
@@ -313,7 +363,12 @@ async def get_predictions_history(request: web.Request):
             limit = 50
         
         # получение истории из БД
-        records = await run_fetchall_predictions_history(request.app, user_id, limit)
+        try:
+            user_id_int = int(user_id)
+        except Exception:
+            return web.json_response({"error": "Invalid user_id"}, status=400)
+
+        records = await run_fetchall_predictions_history(request.app, user_id_int, limit)
         
         if not records:
             return web.json_response({"history": []}, status=200)
@@ -339,6 +394,13 @@ async def hide_prediction(request: web.Request):
     try:
         prediction_id = request.match_info['prediction_id']
         user_id = request.match_info['user_id']
+
+        # поддержка маркера 'me' для user_id
+        if user_id in ('me', 'current'):
+            cookie_uid = request.cookies.get('user_id')
+            if not cookie_uid:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            user_id = cookie_uid
         
         try:
             prediction_id = int(prediction_id)
@@ -361,12 +423,18 @@ async def hide_all_predictions(request: web.Request):
     """Скрывает все предсказания пользователя из истории (soft delete)."""
     try:
         user_id = request.match_info['user_id']
-        
+
+        if user_id in ('me', 'current'):
+            cookie_uid = request.cookies.get('user_id')
+            if not cookie_uid:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            user_id = cookie_uid
+
         try:
             user_id = int(user_id)
         except ValueError:
             return web.json_response({"error": "Invalid ID format"}, status=400)
-        
+
         count = await run_hide_all_predictions(request.app, user_id)
         
         return web.json_response({"success": True, "hidden_count": count}, status=200)

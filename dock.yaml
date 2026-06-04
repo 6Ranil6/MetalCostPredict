@@ -1,0 +1,272 @@
+openapi: 3.0.0
+info:
+  title: API Калькулятора стоимости металлопроката
+  description: Интеллектуальная система оценки стоимости металлопродукции на базе CatBoost.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5111
+    description: Локальный сервер
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: user_id
+      description: "Cookie авторизации с именем user_id (HttpOnly). Используется для идентификации пользователя."
+
+paths:
+  /health:
+    get:
+      tags:
+        - System
+      summary: Проверка работоспособности API
+      responses:
+        '200':
+          description: Сервер работает
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Сервер работает
+
+  /api/register:
+    post:
+      tags:
+        - Auth
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Иван Иванов
+                email:
+                  type: string
+                  example: ivan@mail.ru
+                password:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Успешная регистрация
+        '400':
+          description: Пользователь с таким Email уже существует или не заполнены поля
+
+  /api/login:
+    post:
+      tags:
+        - Auth
+      summary: Вход пользователя в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: ivan@mail.ru
+                password:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+        '401':
+          description: Неверный логин или пароль
+
+  /api/feedback:
+    post:
+      tags:
+        - User
+      summary: Отправка сообщения в техподдержку
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, subject, message]
+              properties:
+                user_id:
+                  type: integer
+                  nullable: true
+                name:
+                  type: string
+                email:
+                  type: string
+                subject:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '200':
+          description: Сообщение успешно отправлено
+
+  /predict-manual:
+    post:
+      tags:
+        - Predict
+      security:
+        - cookieAuth: []
+      summary: Ручной расчет цены изделия
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  nullable: true
+                Наименование:
+                  type: string
+                Категория_цены:
+                  type: string
+                Типоразмер:
+                  type: string
+                Размер_A:
+                  type: string
+                Толщина:
+                  type: string
+      responses:
+        '200':
+          description: Успешный расчет
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price:
+                    type: number
+                    example: 45500.5
+
+  /predict-file:
+    post:
+      tags:
+        - Predict
+      security:
+        - cookieAuth: []
+      summary: Расчет цен на основе загруженного файла (CSV/Parquet)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Файл до 5МБ
+                user_id:
+                  type: integer
+                  description: ID пользователя для сохранения истории
+      responses:
+        '200':
+          description: Успешная обработка. Возвращается файл CSV с предсказанными ценами.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Ошибки файла или формата
+        '413':
+          description: Файл превышает 5МБ
+
+  /api/predictions-history/{user_id}:
+    get:
+      tags:
+        - History
+      summary: Получение истории предсказаний пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "ID пользователя или специальное значение 'me' для текущего пользователя из cookie"
+            example: "me"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Массив с историей расчетов
+
+  /api/hide-prediction/{prediction_id}/{user_id}:
+    post:
+      tags:
+        - History
+      summary: Скрытие отдельного предсказания (soft delete)
+      parameters:
+        - name: prediction_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "ID пользователя или 'me' для текущего пользователя из cookie"
+      responses:
+        '200':
+          description: Запись скрыта
+      security:
+        - cookieAuth: []
+
+  /api/hide-all-predictions/{user_id}:
+    post:
+      tags:
+        - History
+      summary: Скрытие всех предсказаний пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "ID пользователя или 'me' для текущего пользователя из cookie"
+      responses:
+        '200':
+          description: Все записи скрыты
+      security:
+        - cookieAuth: []
+
+  /api/logout:
+    post:
+      tags:
+        - Auth
+      summary: Удаляет cookie авторизации (logout)
+      responses:
+        '200':
+          description: Успешный выход
