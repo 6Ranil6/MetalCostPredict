@@ -12,7 +12,6 @@ from psycopg2 import pool
 
 PG_DSN = os.getenv("DATABASE_URL")
 
-
 def hash_password(password: str) -> str:
     """Хеширует пароль с использованием SHA256."""
     return hashlib.sha256(password.encode('utf-8')).hexdigest()

@@ -782,19 +782,36 @@ document.addEventListener('click', function(event) {
 // загрузка значений для dropdown
 async function loadFieldOptions() {
     try {
-        const response = await fetch('field_options.json');
+        console.log('📍 Загрузка field_options.json...');
+        const response = await fetch('/field_options.json');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ошибка! Статус: ${response.status}`);
+        }
+        
         fieldOptions = await response.json();
+        console.log('✓ field_options.json загружен:', fieldOptions);
         populateSelects();
     } catch (error) {
-        console.error('Ошибка при загрузке field_options.json:', error);
+        console.error('✗ Ошибка при загрузке field_options.json:', error);
+        console.error('⚠ Попытаюсь загрузить альтернативный путь...');
+        // Пытаемся альтернативный путь
+        try {
+            const response = await fetch('./field_options.json');
+            if (response.ok) {
+                fieldOptions = await response.json();
+                console.log('✓ field_options.json загружен (альтернативный путь):', fieldOptions);
+                populateSelects();
+            }
+        } catch (altError) {
+            console.error('✗ Не удалось загрузить field_options.json ни с одного пути:', altError);
+        }
     }
 }
 
 // заполнение селектов значениями из field_options.json
 function populateSelects() {
     const fieldMappings = {
-        'mainBrand': 'Основная_марка',
-        'brand': 'Марка',
         'materialType': 'Тип_материала',
         'productType': 'Тип_продукции',
         'standardType': 'Тип_стандарта',
@@ -817,5 +834,154 @@ function populateSelects() {
             option.textContent = value;
             element.appendChild(option);
         });
+    }
+    
+    // инициализируем слушатели для двух независимых каскадов
+    initializeCascadeListeners();
+}
+
+// инициализация слушателей для двух независимых каскадов
+function initializeCascadeListeners() {
+    // Каскад 1: Тип материала → Основная марка
+    const materialTypeSelect = document.getElementById('materialType');
+    if (materialTypeSelect) {
+        materialTypeSelect.addEventListener('change', onMaterialTypeChange);
+    }
+    
+    // Каскад 2: Тип продукции → Марка профиля
+    const productTypeSelect = document.getElementById('productType');
+    if (productTypeSelect) {
+        productTypeSelect.addEventListener('change', onProductTypeChange);
+    }
+}
+
+// ============================================
+// КАСКАД 1: Тип материала → Основная марка
+// ============================================
+function onMaterialTypeChange() {
+    const materialType = document.getElementById('materialType').value;
+    const mainBrandGroup = document.getElementById('mainBrandGroup');
+    const mainBrandSelect = document.getElementById('mainBrand');
+    
+    // очищаем выбор
+    if (mainBrandSelect) mainBrandSelect.value = '';
+    
+    if (!materialType) {
+        // если материал не выбран - скрываем поле
+        if (mainBrandGroup) mainBrandGroup.style.display = 'none';
+        clearMainBrandSelect();
+        return;
+    }
+    
+    // получаем список марок для выбранного материала
+    const brands = fieldOptions.materialBrandsMap && fieldOptions.materialBrandsMap[materialType];
+    
+    if (!brands || brands.length === 0) {
+        // если нет марок - скрываем поле
+        if (mainBrandGroup) mainBrandGroup.style.display = 'none';
+        clearMainBrandSelect();
+        return;
+    }
+    
+    // показываем и заполняем основную марку
+    if (mainBrandGroup) mainBrandGroup.style.display = 'block';
+    fillMainBrandSelect(brands);
+}
+
+// ============================================
+// КАСКАД 2: Тип продукции → Марка профиля
+// ============================================
+function onProductTypeChange() {
+    const productType = document.getElementById('productType').value;
+    const brandGroup = document.getElementById('brandGroup');
+    const brandSelect = document.getElementById('brand');
+    
+    // очищаем выбор
+    if (brandSelect) brandSelect.value = '';
+    
+    if (!productType) {
+        // если тип не выбран - скрываем поле
+        if (brandGroup) brandGroup.style.display = 'none';
+        clearBrandSelect();
+        return;
+    }
+    
+    // получаем данные для выбранного типа продукции
+    const productData = fieldOptions.productProfileBrandsMap && fieldOptions.productProfileBrandsMap[productType];
+    
+    if (!productData) {
+        // если нет данных - скрываем поле
+        if (brandGroup) brandGroup.style.display = 'none';
+        clearBrandSelect();
+        return;
+    }
+    
+    // управляем видимостью марки профиля
+    if (productData.hasProfileBrand) {
+        if (brandGroup) brandGroup.style.display = 'block';
+        if (productData.profileBrands) {
+            fillBrandSelect(productData.profileBrands);
+        }
+    } else {
+        if (brandGroup) brandGroup.style.display = 'none';
+        clearBrandSelect();
+    }
+}
+
+// заполнение селекта основной марки (химический состав)
+function fillMainBrandSelect(brands) {
+    const select = document.getElementById('mainBrand');
+    if (!select) return;
+    
+    // очищаем старые опции (кроме первой пустой)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+    
+    // добавляем новые опции
+    brands.forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = brand;
+        select.appendChild(option);
+    });
+}
+
+// заполнение селекта марки профиля (геометрия/форма)
+function fillBrandSelect(brands) {
+    const select = document.getElementById('brand');
+    if (!select) return;
+    
+    // очищаем старые опции (кроме первой пустой)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+    
+    // добавляем новые опции
+    brands.forEach(brand => {
+        const option = document.createElement('option');
+        option.value = brand;
+        option.textContent = brand;
+        select.appendChild(option);
+    });
+}
+
+// очистка селекта основной марки
+function clearMainBrandSelect() {
+    const select = document.getElementById('mainBrand');
+    if (select) {
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+    }
+}
+
+// очистка селекта марки профиля
+function clearBrandSelect() {
+    const select = document.getElementById('brand');
+    if (select) {
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
     }
 }
