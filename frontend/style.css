@@ -833,6 +833,8 @@ footer a:hover {
     line-height: 1.6;
     color: var(--text-main);
 }
+
+
 @media (max-width: 480px) {
     body {
         padding: 1rem 0.5rem;

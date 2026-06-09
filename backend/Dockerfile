@@ -15,7 +15,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py app_db.py ./
+COPY app.py app_db.py config.py model.py data_validation.py ./
+COPY handlers/ ./handlers/
 COPY models/ ./models/
 
 ENV DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
