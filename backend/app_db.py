@@ -12,9 +12,10 @@ from psycopg2 import pool
 
 PG_DSN = os.getenv("DATABASE_URL")
 
+
 def hash_password(password: str) -> str:
     """Хеширует пароль с использованием SHA256."""
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def init_db_sync():
@@ -74,6 +75,25 @@ def init_db_sync():
                 ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE
             """)
 
+            # таблица истории чатов с AI помощником
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS ai_chat_history (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    session_id VARCHAR(100),
+                    role VARCHAR(20) NOT NULL,
+                    content TEXT NOT NULL,
+                    image_included BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # индекс для быстрого поиска по user_id и session_id
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ai_chat_user_session 
+                ON ai_chat_history(user_id, session_id, created_at DESC)
+            """)
+
             # дефолтные роли
             cur.execute("""
                 INSERT INTO roles (id, name, description) VALUES 
@@ -120,13 +140,16 @@ def sync_fetchall_predictions_history(db_pool, user_id, limit):
     conn = db_pool.getconn()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT id, input_data, predicted_price, created_at 
                 FROM predictions_history 
                 WHERE user_id = %s AND is_hidden = FALSE
                 ORDER BY created_at DESC 
                 LIMIT %s
-            """, (user_id, limit))
+            """,
+                (user_id, limit),
+            )
             return cur.fetchall()
     finally:
         db_pool.putconn(conn)
@@ -134,35 +157,40 @@ def sync_fetchall_predictions_history(db_pool, user_id, limit):
 
 # АСИНХРОННЫЕ ОБЕРТКИ НАД СИНХРОННЫМИ ЗАПРОСАМИ
 
+
 async def init_db(app):
     """Инициализация пула соединений при запуске приложения."""
     await asyncio.to_thread(init_db_sync)
-    
+
     # создаем пул соединений
-    app['db_pool'] = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=20, dsn=PG_DSN)
+    app["db_pool"] = psycopg2.pool.ThreadedConnectionPool(
+        minconn=1, maxconn=20, dsn=PG_DSN
+    )
     print("База данных PostgreSQL (psycopg2) успешно инициализирована.")
 
 
 async def close_db(app):
     """Закрытие пула соединений при выключении приложения."""
-    if 'db_pool' in app:
-        app['db_pool'].closeall()
+    if "db_pool" in app:
+        app["db_pool"].closeall()
         print("Пул соединений PostgreSQL (psycopg2) закрыт.")
 
 
 async def run_execute(app, query, *params):
     """Асинхронное выполнение SQL запроса на изменение."""
-    return await asyncio.to_thread(sync_execute, app['db_pool'], query, params)
+    return await asyncio.to_thread(sync_execute, app["db_pool"], query, params)
 
 
 async def run_fetchrow(app, query, *params):
     """Асинхронное получение одной строки."""
-    return await asyncio.to_thread(sync_fetchrow, app['db_pool'], query, params)
+    return await asyncio.to_thread(sync_fetchrow, app["db_pool"], query, params)
 
 
 async def run_fetchall_predictions_history(app, user_id, limit):
     """Асинхронное получение истории предсказаний пользователя."""
-    return await asyncio.to_thread(sync_fetchall_predictions_history, app['db_pool'], user_id, limit)
+    return await asyncio.to_thread(
+        sync_fetchall_predictions_history, app["db_pool"], user_id, limit
+    )
 
 
 def sync_hide_prediction(db_pool, prediction_id, user_id):
@@ -172,7 +200,7 @@ def sync_hide_prediction(db_pool, prediction_id, user_id):
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE predictions_history SET is_hidden = TRUE WHERE id = %s AND user_id = %s",
-                (prediction_id, user_id)
+                (prediction_id, user_id),
             )
             conn.commit()
             return cur.rowcount > 0
@@ -187,7 +215,7 @@ def sync_hide_all_predictions(db_pool, user_id):
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE predictions_history SET is_hidden = TRUE WHERE user_id = %s",
-                (user_id,)
+                (user_id,),
             )
             conn.commit()
             return cur.rowcount
@@ -197,9 +225,52 @@ def sync_hide_all_predictions(db_pool, user_id):
 
 async def run_hide_prediction(app, prediction_id, user_id):
     """Асинхронное скрытие одной записи."""
-    return await asyncio.to_thread(sync_hide_prediction, app['db_pool'], prediction_id, user_id)
+    return await asyncio.to_thread(
+        sync_hide_prediction, app["db_pool"], prediction_id, user_id
+    )
 
 
 async def run_hide_all_predictions(app, user_id):
     """Асинхронное скрытие всех записей."""
-    return await asyncio.to_thread(sync_hide_all_predictions, app['db_pool'], user_id)
+    return await asyncio.to_thread(sync_hide_all_predictions, app["db_pool"], user_id)
+
+
+# ============= ФУНКЦИИ ДЛЯ РАБОТЫ С AI CHAT HISTORY =============
+
+
+def sync_fetchall_ai_chat_history(db_pool, user_id, session_id=None, limit=None):
+    """Синхронное получение истории AI чатов пользователя."""
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if session_id:
+                query = """
+                    SELECT id, user_id, session_id, role, content, image_included, created_at
+                    FROM ai_chat_history 
+                    WHERE user_id = %s AND session_id = %s
+                    ORDER BY created_at ASC
+                """
+                params = (user_id, session_id)
+            else:
+                query = """
+                    SELECT id, user_id, session_id, role, content, image_included, created_at
+                    FROM ai_chat_history 
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC
+                """
+                params = (user_id,)
+
+            if limit:
+                query += f" LIMIT {limit}"
+
+            cur.execute(query, params)
+            return cur.fetchall()
+    finally:
+        db_pool.putconn(conn)
+
+
+async def run_fetchall_ai_chat_history(app, user_id, session_id=None, limit=None):
+    """Асинхронное получение истории AI чатов."""
+    return await asyncio.to_thread(
+        sync_fetchall_ai_chat_history, app["db_pool"], user_id, session_id, limit
+    )

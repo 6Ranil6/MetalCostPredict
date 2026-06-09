@@ -80,5 +80,37 @@
         }
     });
 </script>
+
+<!-- CPM AI Помощник: Кнопка и Модальное окно -->
+<button class="cpm-ai-button" id="cpmAiButton" title="CPM AI Помощник">🍊</button>
+
+<!-- Модальное окно чата CPM AI -->
+<div class="ai-chat-modal" id="aiChatModal">
+    <div class="ai-chat-header">
+        <h3>CPM AI</h3>
+        <button class="ai-chat-close" id="aiChatCloseBtn">✕</button>
+    </div>
+    
+    <div class="ai-chat-messages" id="aiChatMessages"></div>
+    
+    <div class="ai-chat-input-area">
+        <div class="ai-chat-image-upload">
+            <button class="ai-chat-image-btn" id="aiImageUploadBtn">📷</button>
+            <img id="aiImagePreview" class="ai-image-preview" style="display: none;">
+        </div>
+        <div class="ai-chat-input-wrapper">
+            <textarea 
+                class="ai-chat-input" 
+                id="aiChatInput" 
+                placeholder="Задайте вопрос или загрузите изображение..."
+                rows="1"
+            ></textarea>
+            <button class="ai-chat-send-btn" id="aiChatSendBtn">Отправить</button>
+        </div>
+        <input type="file" id="aiImageInput" accept="image/*" style="display: none;">
+    </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
