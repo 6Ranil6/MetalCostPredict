@@ -65,15 +65,18 @@
 <div class="ai-chat-modal" id="aiChatModal">
     <div class="ai-chat-header">
         <h3>CPM AI</h3>
-        <button class="ai-chat-close" id="aiChatCloseBtn">✕</button>
     </div>
     
     <div class="ai-chat-messages" id="aiChatMessages"></div>
     
     <div class="ai-chat-input-area">
         <div class="ai-chat-image-upload">
-            <button class="ai-chat-image-btn" id="aiImageUploadBtn">📷</button>
-            <img id="aiImagePreview" class="ai-image-preview" style="display: none;">
+            <button type="button" class="ai-chat-image-btn" id="aiImageUploadBtn">🖼️</button>
+            <!-- Новая обертка для превью и кнопки удаления -->
+            <div class="ai-image-preview-wrapper" id="aiImagePreviewWrapper" style="display: none;">
+                <img id="aiImagePreview" class="ai-image-preview">
+                <button type="button" class="ai-image-clear-btn" id="aiImageClearBtn">✕</button>
+            </div>
         </div>
         <div class="ai-chat-input-wrapper">
             <textarea 
