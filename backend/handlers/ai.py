@@ -96,21 +96,32 @@ class AIAssistant:
 
     async def _process_image(self, image_data: str) -> Dict[str, Any]:
         """
-        Анализирует изображение с помощью VLM (qwen3-vl или moondream).
-        Возвращает структурированные данные о металлопродукции если найдены.
+        Анализирует изображение с помощью VLM.
+        Возвращает структурированные данные о металлопродукции, если найдены.
         """
         try:
-            # проверяем валидность base64
+            # Проверяем валидность base64 и извлекаем чистые данные
             if not image_data.startswith("data:image"):
-                # если просто base64 без префикса
                 image_b64 = image_data
             else:
-                # извлекаем base64 часть из data URL
                 image_b64 = (
                     image_data.split(",")[1] if "," in image_data else image_data
                 )
 
-            # используем qwen3-vl для анализа с timeout в 60 секунд
+            # Декодируем base64-строку в бинарные байты (bytes)
+            # Это решает проблему "File name too long" и некорректной валидации пути в Ollama SDK
+            try:
+                import base64
+                image_bytes = base64.b64decode(image_b64)
+            except Exception as b64_err:
+                logger.error(f"Ошибка декодирования Base64: {b64_err}")
+                return {
+                    "success": False,
+                    "error": f"Ошибка декодирования Base64: {b64_err}",
+                    "source": "image_analysis",
+                }
+
+            # Вызываем Ollama, передавая байты в images
             response = await asyncio.wait_for(
                 ollama_client.chat(
                     model=self.vision_model,
@@ -133,27 +144,34 @@ class AIAssistant:
 
 Если на изображении нет таблицы с металлопродукцией, подробно опиши своими словами на русском языке, что на нем изображено, используя ключ "description".
 Пример: {"description": "На изображении представлен стильный неоновый логотип с текстом RANIL."}""",
-                            "images": [image_b64],
+                            "images": [image_bytes],  # Передаем байты вместо Base64-строки
                         }
                     ],
                     stream=False,
                     options={"temperature": 0},
                 ),
-                timeout=60.0,
+                timeout=300.0,
             )
 
-            # парсим ответ
             content = response.message.content
+            logger.info(f"Сырой ответ от VLM ({self.vision_model}): {content}")
+
             try:
-                # пробуем найти JSON в ответе
+                # Пробуем найти JSON в ответе
                 json_start = content.find("{")
                 json_end = content.rfind("}") + 1
                 if json_start != -1 and json_end > json_start:
                     json_str = content[json_start:json_end]
                     data = json.loads(json_str)
                     return {"success": True, "data": data, "source": "image_analysis"}
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as jde:
+                logger.warning(f"Не удалось распарсить JSON из VLM. Fallback на текстовое описание. Ошибка: {jde}")
+                # Если модель выдала обычный текст вместо JSON, передаем его как описание
+                return {
+                    "success": True, 
+                    "data": {"description": content}, 
+                    "source": "image_analysis"
+                }
 
             return {
                 "success": True,
@@ -163,16 +181,17 @@ class AIAssistant:
             }
 
         except Exception as e:
+            # Обязательно логируем ошибку, чтобы её можно было увидеть в docker logs
+            logger.error(f"Исключение в _process_image: {str(e)}", exc_info=True)
             error_str = str(e).lower()
 
-            # проверяем, есть ли ошибки llama-server или timeout
             if (
                 "killed" in error_str
                 or "llama" in error_str
                 or "timeout" in error_str
                 or "connection" in error_str
             ):
-                error_msg = "AI помощник временно недоступен при обработке изображения. Пожалуйста, попробуйте позже."
+                error_msg = f"AI помощник временно недоступен при обработке изображения ({str(e)})."
             else:
                 error_msg = f"Ошибка при анализе изображения: {str(e)}"
 
@@ -180,7 +199,7 @@ class AIAssistant:
                 "success": False,
                 "error": error_msg,
                 "source": "image_analysis",
-            }
+            }            # Обязательно логируем ошибку, чтобы её можно было увидеть в docker logs
 
     async def chat(
         self,
@@ -189,27 +208,23 @@ class AIAssistant:
         user_id: int = None,
         image_data: str = None,
     ) -> Dict[str, Any]:
-        """
-        Обрабатывает сообщение пользователя и возвращает ответ AI.
-        Если передано изображение, анализирует его.
-        """
         try:
-            # если передано изображение, анализируем его первым
             image_analysis = None
             if image_data:
                 image_analysis = await self._process_image(image_data)
 
-                # если из изображения извлекли данные, добавляем в сообщение
                 if image_analysis.get("success") and image_analysis.get("data"):
                     extracted_data = image_analysis.get("data")
                     if "error" not in extracted_data:
-                        # Если Vision-модель вернула простое описание картинки
                         if "description" in extracted_data:
-                            user_message = f"""{user_message}[Визуальное описание изображения от ассистента]:
-{extracted_data["description"]}"""
-                        # Если Vision-модель успешно распознала таблицу
+                            user_message = f"""{user_message}\n\n[Визуальное описание изображения от ассистента]:\n{extracted_data["description"]}"""
                         else:
-                            user_message = f"""{user_message}[Данные извлечены из изображения]{json.dumps(extracted_data, ensure_ascii=False, indent=2)}Пожалуйста, помоги мне использовать эти данные для расчёта цены."""
+                            user_message = f"""{user_message}\n\n[Данные извлечены из изображения]:\n{json.dumps(extracted_data, ensure_ascii=False, indent=2)}\nПожалуйста, помоги мне использовать эти данные."""
+                
+                # Если произошла техническая ошибка распознавания, передаем её текстовой модели
+                elif image_analysis.get("success") is False:
+                    user_message = f"""{user_message}\n\n[Системное уведомление для разработчика/пользователя: Не удалось обработать изображение из-за технической ошибки: {image_analysis.get('error')}]"""
+
 
             # подготавливаем контекст с историей
             context = await self._prepare_context(conversation_history)

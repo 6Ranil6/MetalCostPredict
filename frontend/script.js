@@ -787,7 +787,7 @@ document.addEventListener('click', function(event) {
 // загрузка значений для dropdown
 async function loadFieldOptions() {
     try {
-        console.log('📍 Загрузка field_options.json...');
+        console.log('Загрузка field_options.json...');
         const response = await fetch('/field_options.json');
         
         if (!response.ok) {
