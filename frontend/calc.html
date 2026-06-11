@@ -67,16 +67,16 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Размер A</label>
-                <input type="number" id="sizeA" placeholder="0.0">
+                <label>Размер A (в мм)</label>
+                <input type="number" id="sizeA" placeholder="0.0 мм">
             </div>
             <div class="form-group">
-                <label>Размер B</label>
-                <input type="number" id="sizeB" placeholder="0.0">
+                <label>Размер B (в мм)</label>
+                <input type="number" id="sizeB" placeholder="0.0 мм">
             </div>
             <div class="form-group">
-                <label>Размер C</label>
-                <input type="number" id="sizeC" placeholder="0.0">
+                <label>Размер C (в мм)</label>
+                <input type="number" id="sizeC" placeholder="0.0 мм">
             </div>
             <div class="form-group">
                 <label>Толщина (мм)</label>
@@ -202,6 +202,39 @@
             <button class="btn btn-secondary" onclick="closeConfirmModal()">Отмена</button>
             <button class="btn btn-danger" onclick="confirmAction()">Подтвердить</button>
         </div>
+    </div>
+</div>
+
+<!-- CPM AI Помощник: Кнопка и Модальное окно -->
+<button class="cpm-ai-button" id="cpmAiButton" title="CPM AI Помощник">🍊</button>
+
+<!-- Модальное окно чата CPM AI -->
+<div class="ai-chat-modal" id="aiChatModal">
+    <div class="ai-chat-header">
+        <h3>CPM AI</h3>
+    </div>
+    
+    <div class="ai-chat-messages" id="aiChatMessages"></div>
+    
+    <div class="ai-chat-input-area">
+        <div class="ai-chat-image-upload">
+            <button type="button" class="ai-chat-image-btn" id="aiImageUploadBtn">🖼️</button>
+            <!-- Новая обертка для превью и кнопки удаления -->
+            <div class="ai-image-preview-wrapper" id="aiImagePreviewWrapper" style="display: none;">
+                <img id="aiImagePreview" class="ai-image-preview">
+                <button type="button" class="ai-image-clear-btn" id="aiImageClearBtn">✕</button>
+            </div>
+        </div>
+        <div class="ai-chat-input-wrapper">
+            <textarea 
+                class="ai-chat-input" 
+                id="aiChatInput" 
+                placeholder="Задайте вопрос или загрузите изображение..."
+                rows="1"
+            ></textarea>
+            <button class="ai-chat-send-btn" id="aiChatSendBtn">Отправить</button>
+        </div>
+        <input type="file" id="aiImageInput" accept="image/*" style="display: none;">
     </div>
 </div>
 

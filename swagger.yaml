@@ -1,11 +1,20 @@
 openapi: 3.0.0
 info:
-  title: API Калькулятора стоимости металлопроката
-  description: Интеллектуальная система оценки стоимости металлопродукции на базе CatBoost.
-  version: 1.0.0
+  title: API Системы оценки металлопроката + AI ассистент
+  description: |
+    Интеллектуальная система оценки стоимости металлопродукции на базе CatBoost.
+    
+    Включает:
+    - Калькулятор цен (ручной ввод, загрузка файлов)
+    - AI ассистент с анализом фото (распознаёт товары в таблицах)
+    - Систему авторизации пользователей
+    - История чатов с сохранением контекста
+  version: 2.0.0
 servers:
   - url: http://localhost:5111
-    description: Локальный сервер
+    description: Локальный backend сервер
+  - url: /api
+    description: Через Nginx прокси (docker-compose)
 components:
   securitySchemes:
     cookieAuth:
@@ -262,6 +271,156 @@ paths:
       security:
         - cookieAuth: []
 
+  /api/ai-chat:
+    post:
+      tags:
+        - AI Assistant
+      summary: Отправить сообщение AI ассистенту с опциональным фото
+      description: |
+        Основной endpoint для общения с AI помощником. 
+        - Принимает текстовое сообщение
+        - Опционально анализирует загруженное фото (распознаёт таблицы с товарами)
+        - Сохраняет историю в БД для контекста
+        - Возвращает ответ от AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message, user_id]
+              properties:
+                message:
+                  type: string
+                  example: "Какова цена профиля 30х30х1.5?"
+                  description: Текстовое сообщение пользователя
+                user_id:
+                  type: integer
+                  example: 1
+                  description: ID пользователя (для сохранения истории и контекста)
+                session_id:
+                  type: string
+                  nullable: true
+                  example: "session_uuid_123"
+                  description: ID сессии чата (если null, система создаст новую)
+                image:
+                  type: string
+                  nullable: true
+                  format: byte
+                  example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABA..."
+                  description: |
+                    Фото в формате Base64 (data:image/*;base64,...)
+                    Используется для анализа таблиц с товарами
+                    Max 5MB (обработано на backend, Nginx 10MB)
+      responses:
+        '200':
+          description: Успешный ответ от AI
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    example: "Профиль 30х30х1.5 стоит примерно 45500 рублей за тонну."
+                  session_id:
+                    type: string
+                    example: "session_uuid_123"
+                  image_analysis:
+                    type: object
+                    nullable: true
+                    description: Результат анализа фото (если было загружено)
+                    properties:
+                      detected_items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            category:
+                              type: string
+                            price:
+                              type: number
+        '400':
+          description: Ошибка валидации (пустое сообщение, некорректный base64 и т.д.)
+        '413':
+          description: Изображение превышает 5MB
+        '500':
+          description: Ошибка Ollama или базы данных
+
+  /api/ai-history/{user_id}:
+    get:
+      tags:
+        - AI Assistant
+      summary: Получить историю чатов пользователя
+      description: |
+        Возвращает всю историю разговоров с AI, сгруппированную по сессиям.
+        Последние 10 сообщений используются для контекста при ответах AI.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+          description: ID пользователя
+        - name: session_id
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "session_uuid_123"
+          description: Если указана, вернёт только сообщения этой сессии
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            example: 50
+          description: Максимальное количество сообщений для возврата
+      responses:
+        '200':
+          description: История чатов успешно получена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        session_id:
+                          type: string
+                          example: "session_uuid_123"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T10:30:00"
+                        message_count:
+                          type: integer
+                          example: 5
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              role:
+                                type: string
+                                enum: [user, assistant]
+                              content:
+                                type: string
+                              image_included:
+                                type: boolean
+                              created_at:
+                                type: string
+                                format: date-time
+        '404':
+          description: Пользователь не найден
+
   /api/logout:
     post:
       tags:
@@ -270,3 +429,17 @@ paths:
       responses:
         '200':
           description: Успешный выход
+
+tags:
+  - name: System
+    description: Системные операции (проверка здоровья)
+  - name: Auth
+    description: Аутентификация и авторизация (регистрация, вход, выход)
+  - name: Predict
+    description: Предсказание цен (ручной расчет, загрузка файлов)
+  - name: User
+    description: Пользовательские функции (обратная связь, профиль)
+  - name: History
+    description: История операций и предсказаний пользователя
+  - name: AI Assistant
+    description: AI ассистент для чата и анализа фото товаров

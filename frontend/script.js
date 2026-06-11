@@ -1,6 +1,11 @@
 let currentMode = 'manual'; // ручной ввод или загрузка файла
 let fieldOptions = {}; // кэш для значений из field_options.json
 
+// API URL - использует относительный путь для Nginx проксирования
+const API_URL = '/api';
+// Для локального запуска без docker раскомментируйте:
+// const API_URL = 'http://localhost:5111/api';
+
 function renderUserStatus() {
     const container = document.querySelector('.container');
     if (!container) return;
@@ -266,7 +271,7 @@ async function calculate() {
                 'Условие_цены': document.getElementById('priceCondition').value
             };
 
-            response = await fetch('http://127.0.0.1:5111/predict-manual', {
+            response = await fetch(`${API_URL}/predict-manual`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -296,7 +301,7 @@ async function calculate() {
             fileData.append('file', fileInput.files[0]);
             fileData.append('user_id', userId);
 
-            response = await fetch('http://127.0.0.1:5111/predict-file', {
+            response = await fetch(`${API_URL}/predict-file`, {
                 method: 'POST',
                 body: fileData 
             });
@@ -365,7 +370,7 @@ async function handleAuthSubmit(event, type) {
             const email = inputs[0].value;
             const password = inputs[1].value;
             
-            const response = await fetch('http://127.0.0.1:5111/api/login', {
+            const response = await fetch(`${API_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -395,7 +400,7 @@ async function handleAuthSubmit(event, type) {
                 return;
             }
             
-            const response = await fetch('http://127.0.0.1:5111/api/register', {
+            const response = await fetch(`${API_URL}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })
@@ -429,7 +434,7 @@ async function handleFeedbackSubmit(event) {
     const resultBox = document.getElementById('feedback-result');
 
     try {
-        const response = await fetch('http://127.0.0.1:5111/api/feedback', {
+        const response = await fetch(`${API_URL}/feedback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -473,7 +478,7 @@ async function loadPredictionsHistory() {
     const limit = parseInt(limitInput.value) || 50;
 
     try {
-        const response = await fetch(`http://127.0.0.1:5111/api/predictions-history/${user.id}?limit=${limit}`);
+        const response = await fetch(`${API_URL}/predictions-history/${user.id}?limit=${limit}`);
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -614,7 +619,7 @@ function clearHistoryView() {
 // функция для очистки всей истории
 async function clearAllHistory(userId) {
     try {
-        const response = await fetch(`http://127.0.0.1:5111/api/hide-all-predictions/${userId}`, {
+        const response = await fetch(`${API_URL}/hide-all-predictions/${userId}`, {
             method: 'POST'
         });
 
@@ -640,7 +645,7 @@ async function deleteHistoryItem(predictionId) {
     if (!user) return;
 
     try {
-        const response = await fetch(`http://127.0.0.1:5111/api/hide-prediction/${predictionId}/${user.id}`, {
+        const response = await fetch(`${API_URL}/hide-prediction/${predictionId}/${user.id}`, {
             method: 'POST'
         });
 
@@ -782,7 +787,7 @@ document.addEventListener('click', function(event) {
 // загрузка значений для dropdown
 async function loadFieldOptions() {
     try {
-        console.log('📍 Загрузка field_options.json...');
+        console.log('Загрузка field_options.json...');
         const response = await fetch('/field_options.json');
         
         if (!response.ok) {
@@ -981,3 +986,382 @@ function clearBrandSelect() {
         }
     }
 }
+
+// Переменные для управления AI чатом
+let aiChatState = {
+    isOpen: false,
+    currentSessionId: Date.now().toString(), // уникальный ID сессии
+    messages: [],
+    isLoading: false,
+    selectedImage: null
+};
+
+// Инициализация AI чата при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    initAIChatHandlers();
+    // если нужно, генерируем новый session ID при загрузке
+    if (!localStorage.getItem('aiSessionId')) {
+        localStorage.setItem('aiSessionId', aiChatState.currentSessionId);
+    } else {
+        aiChatState.currentSessionId = localStorage.getItem('aiSessionId');
+    }
+});
+
+function initAIChatHandlers() {
+    const aiButton = document.getElementById('cpmAiButton');
+    const aiModal = document.getElementById('aiChatModal');
+    const aiCloseBtn = document.getElementById('aiChatCloseBtn');
+    const aiSendBtn = document.getElementById('aiChatSendBtn');
+    const aiInput = document.getElementById('aiChatInput');
+    const aiImageUploadBtn = document.getElementById('aiImageUploadBtn');
+    const aiImageInput = document.getElementById('aiImageInput');
+    // Находим новую кнопку
+    const aiImageClearBtn = document.getElementById('aiImageClearBtn');
+    
+    if (aiButton) aiButton.addEventListener('click', toggleAIChatModal);
+    if (aiCloseBtn) aiCloseBtn.addEventListener('click', closeAIChatModal);
+    if (aiSendBtn) aiSendBtn.addEventListener('click', sendAIMessage);
+    
+    // Привязываем функцию удаления
+    if (aiImageClearBtn) {
+        aiImageClearBtn.addEventListener('click', clearAIImagePreview);
+    }
+    
+    if (aiInput) {
+        aiInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAIMessage();
+            }
+        });
+        aiInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+    }
+    if (aiImageUploadBtn) {
+        aiImageUploadBtn.addEventListener('click', function() {
+            aiImageInput.click();
+        });
+    }
+    if (aiImageInput) {
+        aiImageInput.addEventListener('change', handleAIImageSelect);
+    }
+}
+
+function toggleAIChatModal() {
+    const aiModal = document.getElementById('aiChatModal');
+    if (aiChatState.isOpen) {
+        closeAIChatModal();
+    } else {
+        openAIChatModal();
+    }
+}
+
+function openAIChatModal() {
+    const aiModal = document.getElementById('aiChatModal');
+    const aiMessages = document.getElementById('aiChatMessages');
+    
+    aiChatState.isOpen = true;
+    aiModal.classList.add('active');
+    
+    // загружаем сохранённые сообщения если они есть
+    if (aiChatState.messages.length === 0) {
+        loadAIChatHistory();
+    }
+    
+    // скролл вниз
+    setTimeout(() => {
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    }, 100);
+}
+
+function closeAIChatModal() {
+    const aiModal = document.getElementById('aiChatModal');
+    aiChatState.isOpen = false;
+    aiModal.classList.remove('active');
+}
+
+async function sendAIMessage() {
+    const aiInput = document.getElementById('aiChatInput');
+    const aiMessages = document.getElementById('aiChatMessages');
+    const aiSendBtn = document.getElementById('aiChatSendBtn');
+    
+    const message = aiInput.value.trim();
+    
+    if (!message && !aiChatState.selectedImage) {
+        return;
+    }
+    
+    // отключаем кнопку отправки
+    aiSendBtn.disabled = true;
+    aiChatState.isLoading = true;
+    
+    // создаём элемент для индикатора загрузки
+    let loadingEl = null;
+    
+    try {
+        // добавляем сообщение пользователя в UI
+        const userMessageEl = document.createElement('div');
+        userMessageEl.className = 'ai-message user';
+        userMessageEl.innerHTML = `
+            <div class="ai-message-bubble user">${escapeHtml(message || '(изображение)')}</div>
+        `;
+        aiMessages.appendChild(userMessageEl);
+        
+        // если есть изображение, показываем его
+        if (aiChatState.selectedImage) {
+            const imageEl = document.createElement('img');
+            imageEl.src = aiChatState.selectedImage;
+            imageEl.style.maxWidth = '150px';
+            imageEl.style.marginTop = '0.5rem';
+            userMessageEl.querySelector('.ai-message-bubble').appendChild(imageEl);
+        }
+        
+        // очищаем input и восстанавливаем высоту
+        aiInput.value = '';
+        aiInput.style.height = 'auto';
+        
+        // добавляем сообщение о загрузке
+        loadingEl = document.createElement('div');
+        loadingEl.className = 'ai-message';
+        loadingEl.innerHTML = `
+            <div class="ai-message-bubble assistant" style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="display: inline-block; width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+                Идёт загрузка ответа...
+            </div>
+        `;
+        aiMessages.appendChild(loadingEl);
+        
+        // добавляем стиль для анимации пульсации
+        if (!document.getElementById('loadingAnimation')) {
+            const style = document.createElement('style');
+            style.id = 'loadingAnimation';
+            style.textContent = `
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // получаем текущего пользователя
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = user.id || null;
+        
+        // отправляем сообщение на backend
+        const response = await fetch(`${API_URL}/ai-chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                message: message,
+                user_id: userId,
+                session_id: aiChatState.currentSessionId,
+                image: aiChatState.selectedImage || null
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            
+            // удаляем индикатор загрузки
+            if (loadingEl && loadingEl.parentNode) {
+                loadingEl.parentNode.removeChild(loadingEl);
+            }
+            
+            throw new Error(error.error || 'Ошибка при отправке сообщения');
+        }
+        
+        const data = await response.json();
+        
+        // удаляем индикатор загрузки
+        if (loadingEl && loadingEl.parentNode) {
+            loadingEl.parentNode.removeChild(loadingEl);
+        }
+        
+        // добавляем ответ AI в UI
+        const aiMessageEl = document.createElement('div');
+        aiMessageEl.className = 'ai-message';
+        aiMessageEl.innerHTML = `
+            <div class="ai-message-bubble assistant">${escapeHtml(data.response)}</div>
+        `;
+        aiMessages.appendChild(aiMessageEl);
+        
+        // сохраняем сообщение в локальном состоянии
+        aiChatState.messages.push({
+            role: 'user',
+            content: message
+        });
+        aiChatState.messages.push({
+            role: 'assistant',
+            content: data.response
+        });
+        
+        // очищаем выбранное изображение и input поле
+        clearAIImagePreview();
+        
+    } catch (error) {
+        console.error('Ошибка AI чата:', error);
+        
+        // удаляем индикатор загрузки если он всё ещё там
+        if (loadingEl && loadingEl.parentNode) {
+            loadingEl.parentNode.removeChild(loadingEl);
+        }
+        
+        // показываем понятное сообщение об ошибке
+        let errorMessage = error.message;
+        if (error.message.includes('llama-server') || error.message.includes('killed')) {
+            errorMessage = 'AI помощник временно недоступен. Пожалуйста, попробуйте позже.';
+        }
+        
+        const errorEl = document.createElement('div');
+        errorEl.className = 'ai-message';
+        errorEl.innerHTML = `
+            <div class="ai-message-bubble assistant" style="background: #fecaca; border-left-color: #dc2626;">
+                ❌ ${escapeHtml(errorMessage)}
+            </div>
+        `;
+        aiMessages.appendChild(errorEl);
+    } finally {
+        // включаем кнопку отправки
+        aiSendBtn.disabled = false;
+        aiChatState.isLoading = false;
+        
+        // скролл вниз
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    }
+}
+function handleAIImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // проверяем размер файла (максимум 5МБ)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Файл слишком большой. Максимум 5МБ.');
+        return;
+    }
+    
+    // читаем файл как base64
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        aiChatState.selectedImage = event.target.result;
+        
+        const preview = document.getElementById('aiImagePreview');
+        const wrapper = document.getElementById('aiImagePreviewWrapper');
+        
+        // Показываем обертку со всей группой элементов
+        if (preview && wrapper) {
+            preview.src = aiChatState.selectedImage;
+            wrapper.style.display = 'inline-block'; // Делаем обертку видимой
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearAIImagePreview() {
+    const preview = document.getElementById('aiImagePreview');
+    const wrapper = document.getElementById('aiImagePreviewWrapper');
+    const aiImageInput = document.getElementById('aiImageInput');
+    
+    aiChatState.selectedImage = null;
+    
+    // Полностью скрываем обертку
+    if (wrapper) {
+        wrapper.style.display = 'none';
+    }
+    if (preview) {
+        preview.src = '';
+    }
+    if (aiImageInput) {
+        aiImageInput.value = ''; // сброс, чтобы можно было загрузить ту же картинку повторно
+    }
+}
+
+async function loadAIChatHistory() {
+    const aiMessages = document.getElementById('aiChatMessages');
+    if (!aiMessages) return;
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // 1. ЕСЛИ ПОЛЬЗОВАТЕЛЬ НЕ АВТОРИЗОВАН (Режим гостя)
+    if (!user || !user.id) {
+        aiMessages.innerHTML = `
+            <div class="ai-message">
+                <div class="ai-message-bubble assistant">
+                    Привет! Я CPM AI, ваш виртуальный ассистент системы оценки металлопродукции. Чем я могу помочь вам сегодня?<br><br>
+                    <i>Примечание: Чтобы сохранять историю нашего общения, пожалуйста, войдите в личный кабинет.</i>
+                </div>
+            </div>
+        `;
+        aiChatState.messages = [];
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+        return; // Завершаем работу для гостя
+    }
+
+    try {
+        aiMessages.innerHTML = '<div class="history-empty">Загрузка истории сообщений...</div>';
+
+        const response = await fetch(`${API_URL}/ai-history/${user.id}`);
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить историю чата');
+        }
+
+        const data = await response.json();
+        const history = data.history || [];
+
+        aiMessages.innerHTML = ''; // Очищаем надпись загрузки
+
+        // Ищем в истории сессию, которая совпадает с текущей активной сессией в браузере
+        const currentSession = history.find(s => s.session_id === aiChatState.currentSessionId);
+
+        if (currentSession && currentSession.messages && currentSession.messages.length > 0) {
+            // Загружаем сообщения в локальный массив состояния
+            aiChatState.messages = currentSession.messages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
+
+            // Отрисовываем каждое сообщение из истории в интерфейсе
+            currentSession.messages.forEach(msg => {
+                const messageEl = document.createElement('div');
+                messageEl.className = `ai-message ${msg.role === 'user' ? 'user' : ''}`;
+                messageEl.innerHTML = `
+                    <div class="ai-message-bubble ${msg.role === 'user' ? 'user' : 'assistant'}">${escapeHtml(msg.content)}</div>
+                `;
+                aiMessages.appendChild(messageEl);
+            });
+        } else {
+            // Если у пользователя ещё нет сообщений в этой сессии, пишем приветствие
+            aiMessages.innerHTML = `
+                <div class="ai-message">
+                    <div class="ai-message-bubble assistant">Привет! Я CPM AI, ваш виртуальный ассистент. Чем я могу помочь вам сегодня?</div>
+                </div>
+            `;
+            aiChatState.messages = [];
+        }
+
+        // Прокручиваем чат до самого последнего сообщения
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+
+    } catch (error) {
+        console.error('Ошибка при загрузке истории AI-чата:', error);
+        aiMessages.innerHTML = `
+            <div class="ai-message">
+                <div class="ai-message-bubble assistant" style="background: #fecaca; border-left-color: #dc2626;">
+                    ⚠️ Не удалось загрузить историю диалога с сервера, но вы всё равно можете задать мне вопрос!
+                </div>
+            </div>
+        `;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+

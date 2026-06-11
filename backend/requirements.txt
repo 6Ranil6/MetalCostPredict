@@ -5,6 +5,7 @@ pandas
 catboost
 pyarrow
 psycopg2-binary
+ollama
 pytest
 pytest-asyncio
 pytest-aiohttp

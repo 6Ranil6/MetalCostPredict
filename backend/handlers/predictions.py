@@ -15,7 +15,7 @@ from data_validation import check_data_format, clean_input_data_for_json
 prediction_routes = web.RouteTableDef()
 
 
-@prediction_routes.post("/predict-manual")
+@prediction_routes.post("/api/predict-manual")
 async def manual_handler(request: web.Request):
     """
     Обрабатывает ручной ввод данных и возвращает предсказанную цену.
@@ -60,7 +60,7 @@ async def manual_handler(request: web.Request):
         return web.json_response({"error": str(e)}, status=500)
 
 
-@prediction_routes.post("/predict-file")
+@prediction_routes.post("/api/predict-file")
 async def file_handler(request: web.Request):
     """
     Обрабатывает загруженный файл (CSV/Parquet) и возвращает результаты с предсказаниями.
